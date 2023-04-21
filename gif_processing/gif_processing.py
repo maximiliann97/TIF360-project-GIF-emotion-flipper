@@ -1,5 +1,6 @@
 import tkinter as tk
 from PIL import Image, ImageTk, ImageDraw
+import os
 
 class GifViewer:
 	def __init__(self, gif_path, loop=True):
@@ -58,6 +59,10 @@ class GifFlipper:
 		# Resets all variables
 		self.reset()
 
+		# Create a default root window
+		temp_root = tk.Tk()
+		temp_root.withdraw()
+
 		# Loads gif file
 		gif = Image.open(path)
 
@@ -79,7 +84,12 @@ class GifFlipper:
 
 
 if __name__ == "__main__":
-	gif_flipper = GifFlipper()
-	gif_flipper.load_frames("data/mike.gif")
 
-	GifViewer("data/mike.gif").view_gif()
+	# Script path
+	script_path = os.path.dirname(os.path.realpath(__file__))
+
+	gif_flipper = GifFlipper()
+	gif_path = os.path.join(script_path, "data/mike.gif")
+	gif_flipper.load_frames(gif_path)
+
+	GifViewer(gif_path).view_gif()
