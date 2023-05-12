@@ -50,7 +50,7 @@ class GifFlipper:
 		# List of ms per frame (int)
 		self.frame_durations = []
 
-		# List of all faces in a frame as Image objects, for each frame
+		# List of lists of all faces in a frame as Image objects, for each frame
 		self.faces = []
 		
 		#List of coordinates of faces in each frame. Each element is a list of coordinates on the form [x,y,w,h]
@@ -94,8 +94,9 @@ class GifFlipper:
 	#typically img will be a PIL Image object, but any image that can be cast to a numpy array will work
 	def list_of_faces(self, img):
 		face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+		rgb_img = img.convert('RGB')
 		# detect faces
-		img_arr = np.array(img)
+		img_arr = np.array(rgb_img)
 		faces = face_cascade.detectMultiScale(img_arr, 1.3, 5)
 		# cut out faces, save them in a list
 		faces_list = []
@@ -125,5 +126,8 @@ if __name__ == "__main__":
 
 	gif_flipper.load_frames(gif_path)
 	gif_flipper.detect_faces()
-
+	print(f"the length of the faces list is {len(gif_flipper.faces)} and the last element looks like this: {gif_flipper.faces[-1]}")
+	print(f"the length of the coordinates list is {len(gif_flipper.coordinates)} and the last element looks like this: {gif_flipper.coordinates[-1][-1]}")
+	print(np.shape(gif_flipper.faces[-5][-1]))	
+	print(np.shape(gif_flipper.coordinates[-1][-1]))
 
