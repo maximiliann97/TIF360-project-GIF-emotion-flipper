@@ -1,6 +1,7 @@
 import tkinter as tk
 from PIL import Image, ImageTk, ImageDraw
 import os
+import sys
 
 class GifViewer:
 	def __init__(self, gif_path, loop=True):
@@ -9,14 +10,14 @@ class GifViewer:
 		self.loop = loop
 		self.current_frame = 0
 		self.label = tk.Label(self.root)
-
+		self.button = tk.Button(self.root,text='Exit',command=lambda:self.root.destroy()).pack(expand=True)
 		gif = Image.open(gif_path)
 		self.frames = []
 		self.frame_durations = []
 
 		try:
 			while True:
-				frame = ImageTk.PhotoImage(gif)
+				frame = ImageTk.PhotoImage(gif, master = self.root)
 				self.frames.append(frame)
 				self.frame_durations.append(gif.info['duration'])
 				gif.seek(gif.tell() + 1)
@@ -24,7 +25,7 @@ class GifViewer:
 			pass
 
 	def update_gif(self):
-		self.label.config(image=self.frames[self.current_frame])
+		self.label.config(image= (self.frames[self.current_frame]))
 		self.current_frame = (self.current_frame + 1) % len(self.frames)
 
 		delay = self.frame_durations[self.current_frame]
@@ -34,7 +35,9 @@ class GifViewer:
 	def view_gif(self):
 		self.label.pack()
 		self.update_gif()
+	
 		self.root.mainloop()
+		sys.exit()
 
 
 class GifFlipper:
@@ -91,5 +94,4 @@ if __name__ == "__main__":
 	gif_flipper = GifFlipper()
 	gif_path = os.path.join(script_path, "data/mike.gif")
 	gif_flipper.load_frames(gif_path)
-
 	GifViewer(gif_path).view_gif()
