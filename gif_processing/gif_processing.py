@@ -95,7 +95,6 @@ class GifFlipper:
 	def list_of_faces(self, img):
 		face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 		# detect faces
-		print(type(img))
 		img_arr = np.array(img)
 		faces = face_cascade.detectMultiScale(img_arr, 1.3, 5)
 		# cut out faces, save them in a list
@@ -126,6 +125,5 @@ if __name__ == "__main__":
 
 	gif_flipper.load_frames(gif_path)
 	gif_flipper.detect_faces()
-	print(len(gif_flipper.faces))
 
 
