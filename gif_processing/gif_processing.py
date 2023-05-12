@@ -2,6 +2,9 @@ import tkinter as tk
 from PIL import Image, ImageTk, ImageDraw
 import os
 import sys
+import cv2
+import numpy as np
+
 
 class GifViewer:
 	def __init__(self, gif_path, loop=True):
@@ -10,7 +13,6 @@ class GifViewer:
 		self.loop = loop
 		self.current_frame = 0
 		self.label = tk.Label(self.root)
-		self.button = tk.Button(self.root,text='Exit',command=lambda:self.root.destroy()).pack(expand=True)
 		gif = Image.open(gif_path)
 		self.frames = []
 		self.frame_durations = []
@@ -35,9 +37,8 @@ class GifViewer:
 	def view_gif(self):
 		self.label.pack()
 		self.update_gif()
-	
 		self.root.mainloop()
-		sys.exit()
+		
 
 
 class GifFlipper:
@@ -51,12 +52,16 @@ class GifFlipper:
 
 		# List of all faces in a frame as Image objects, for each frame
 		self.faces = []
+		
+		#List of coordinates of faces in each frame. Each element is a list of coordinates on the form [x,y,w,h]
+		self.coordinates = []
 
 	def reset(self):
 		self.frames = []
 		self.n_frames = 0
 		self.frame_durations = []
 		self.faces = []
+		self.coordinates = []
 
 	def load_frames(self, path):
 		# Resets all variables
@@ -84,14 +89,43 @@ class GifFlipper:
 			# Updates the pointer if it is not the last iteration
 			if i < self.n_frames - 1:
 				gif.seek(gif.tell() + 1)
+	
+	#This function takes an image as input and returns a list of faces (numpy arrays), along with their coordinates.
+	#typically img will be a PIL Image object, but any image that can be cast to a numpy array will work
+	def list_of_faces(self, img):
+		face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+		# detect faces
+		print(type(img))
+		img_arr = np.array(img)
+		faces = face_cascade.detectMultiScale(img_arr, 1.3, 5)
+		# cut out faces, save them in a list
+		faces_list = []
+		coordinates_list = []
+		for (x, y, w, h) in faces:
+			faces_list.append(img_arr[y:y + h, x:x + w])
+			coordinates_list.append([[x,y,w,h]])
+		return faces_list, coordinates_list
+	
+	def detect_faces(self):
+		#This function assumes that the frames have been loaded
+		for frame in self.frames:
+			faces_cut_out, coordinates = self.list_of_faces(frame)
+			self.faces.append(faces_cut_out)
+			self.coordinates.append(coordinates)
 
 
 if __name__ == "__main__":
 
 	# Script path
 	script_path = os.path.dirname(os.path.realpath(__file__))
-
+	#Initiate the flipper
 	gif_flipper = GifFlipper()
 	gif_path = os.path.join(script_path, "data/mike.gif")
-	gif_flipper.load_frames(gif_path)
+	#View the original gif once
 	GifViewer(gif_path).view_gif()
+
+	gif_flipper.load_frames(gif_path)
+	gif_flipper.detect_faces()
+	print(len(gif_flipper.faces))
+
+
