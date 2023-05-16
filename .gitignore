@@ -1,3 +1,6 @@
 pytorch-CycleGAN-and-pix2pix/
 /cycleGAN/Our implementation/data
 /cycleGAN/Our implementation/saved_images
+/gif_processing/labeling_data.py
+/generate_data/happy/
+/generate_data/sad/
