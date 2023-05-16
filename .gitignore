@@ -4,3 +4,7 @@ pytorch-CycleGAN-and-pix2pix/
 /gif_processing/labeling_data.py
 /generate_data/happy/
 /generate_data/sad/
+cycleGAN/Our implementation/critich.pth.tar
+cycleGAN/Our implementation/criticz.pth.tar
+cycleGAN/Our implementation/genh.pth.tar
+cycleGAN/Our implementation/genz.pth.tar
