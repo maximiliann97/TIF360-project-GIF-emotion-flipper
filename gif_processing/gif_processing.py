@@ -129,9 +129,9 @@ class GifFlipper:
 			self.coordinates.append(coordinates)
 
 	def load_generators(self):
-		self.gen_happy = torch.load("models/gen_happy.pth.tar", map_location=torch.device('cpu'))
+		self.gen_happy = torch.load("models/gen_happy2.pth.tar", map_location=torch.device('cpu'))
 		self.gen_happy.eval()
-		self.gen_sad = torch.load("models/gen_sad.pth.tar", map_location=torch.device('cpu'))
+		self.gen_sad = torch.load("models/gen_sad2.pth.tar", map_location=torch.device('cpu'))
 		self.gen_sad.eval()
 
 
@@ -144,11 +144,11 @@ class GifFlipper:
 		with torch.no_grad():
 			transformed_face = generator(face_tensor)
 
+		transformed_face = transformed_face * 0.5 + 0.5
 		transformed_face = to_image(transformed_face.cpu())
 
 		return transformed_face
 
-	
 
 	def flip_faces(self, margin=10, fade_type="linear", sig_param=4, input_emotion="happy"):
 
@@ -199,6 +199,7 @@ class GifFlipper:
 
 				# Paste the flipped face onto the frame
 				flipped_frame.paste(transformed_face, tuple(self.coordinates[i][j][0][0:2]), transformed_face)
+
 			self.flipped_frames.append(flipped_frame)
 
 
@@ -215,14 +216,13 @@ class GifFlipper:
 if __name__ == "__main__":	
 	gif_flipper = GifFlipper()
 
-	filename = "sad_mike"
+	filename = "dancing_guy"
 
 	gif_flipper.load_generators()
 	gif_flipper.load_frames(filename + ".gif")
 	gif_flipper.detect_faces()
-	gif_flipper.flip_faces(margin=20, fade_type="sigmoid", sig_param=6, input_emotion="happy")
+	gif_flipper.flip_faces(margin=25, fade_type="sigmoid", sig_param=6, input_emotion="happy")
 	gif_flipper.build_flipped_gif(filename + "_flipped")
-
 
 
 
