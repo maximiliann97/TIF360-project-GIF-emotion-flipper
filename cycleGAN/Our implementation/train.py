@@ -1,5 +1,5 @@
 import torch
-from dataset import ObjectToObjectDataset
+from dataset import Object1Object2Dataset
 from utils import save_checkpoint, load_checkpoint
 from torch.utils.data import DataLoader
 import torch.nn as nn
@@ -123,36 +123,36 @@ def main(object_1:str, object_2:str):
 
     if config.LOAD_MODEL:
         load_checkpoint(
-            config.CHECKPOINT_GEN_OBJ1,
+            f"gen_{object_1}.pth.tar",
             gen_obj1,
             opt_gen,
             config.LEARNING_RATE,
         )
         load_checkpoint(
-            config.CHECKPOINT_GEN_OBJ2,
+            f"gen_{object_2}.pth.tar",
             gen_obj2,
             opt_gen,
             config.LEARNING_RATE,
         )
         load_checkpoint(
-            config.CHECKPOINT_DISC_OBJ1,
+            f"disc_{object_1}.pth.tar",
             disc_obj1,
             opt_disc,
             config.LEARNING_RATE,
         )
         load_checkpoint(
-            config.CHECKPOINT_DISC_OBJ2,
+            f"disc_{object_2}.pth.tar",
             disc_obj2,
             opt_disc,
             config.LEARNING_RATE,
         )
 
-    dataset = ObjectToObjectDataset(
+    dataset = Object1Object2Dataset(
         root_obj1=config.TRAIN_DIR + '/' + object_1,
         root_obj2=config.TRAIN_DIR + '/' + object_2,
         transform=config.transforms,
     )
-    # val_dataset = ObjectToObjectDataset(
+    # val_dataset = Object1Object2Dataset(
     #     root_obj1=config.VAL_DIR + '/' + object_1,
     #     root_obj2=config.VAL_DIR + '/' + object_2,
     #     transform=config.transforms,
@@ -191,22 +191,22 @@ def main(object_1:str, object_2:str):
         )
 
         if config.SAVE_MODEL:
-
+            
             # if epoch % 10:
             #     save_checkpoint(gen_obj1, opt_gen, filename= str(epoch) + config.CHECKPOINT_GEN_OBJ1)
             #     save_checkpoint(gen_obj2, opt_gen, filename= str(epoch) + config.CHECKPOINT_GEN_OBJ2)
             #     save_checkpoint(disc_obj1, opt_disc, filename= str(epoch) + config.CHECKPOINT_DISC_OBJ1)
             #     save_checkpoint(disc_obj2, opt_disc, filename= str(epoch) + config.CHECKPOINT_DISC_OBJ2)
-
+                
             # save_checkpoint(gen_obj1, opt_gen, filename=config.CHECKPOINT_GEN_OBJ1)
             # save_checkpoint(gen_obj2, opt_gen, filename=config.CHECKPOINT_GEN_OBJ2)
             # save_checkpoint(disc_obj1, opt_disc, filename=config.CHECKPOINT_DISC_OBJ1)
             # save_checkpoint(disc_obj2, opt_disc, filename=config.CHECKPOINT_DISC_OBJ2)
 
-            save_checkpoint(gen_obj1, opt_gen, filename=str(epoch) + config.CHECKPOINT_GEN_OBJ1)
-            save_checkpoint(gen_obj2, opt_gen, filename=str(epoch) + config.CHECKPOINT_GEN_OBJ2)
-            save_checkpoint(disc_obj1, opt_disc, filename=str(epoch) + config.CHECKPOINT_DISC_OBJ1)
-            save_checkpoint(disc_obj2, opt_disc, filename=str(epoch) + config.CHECKPOINT_DISC_OBJ2)
+            save_checkpoint(gen_obj1, opt_gen, filename=str(epoch) + f"gen_{object_1}.pth.tar")
+            save_checkpoint(gen_obj2, opt_gen, filename=str(epoch) + f"gen_{object_2}.pth.tar")
+            save_checkpoint(disc_obj1, opt_disc, filename=str(epoch) + f"disc_{object_1}.pth.tar")
+            save_checkpoint(disc_obj2, opt_disc, filename=str(epoch) + f"disc_{object_2}.pth.tar")
 
 
 if __name__ == "__main__":

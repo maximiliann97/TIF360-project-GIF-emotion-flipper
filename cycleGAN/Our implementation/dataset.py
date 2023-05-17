@@ -3,7 +3,7 @@ import os
 from torch.utils.data import Dataset
 import numpy as np
 
-class ObjectToObjectDataset(Dataset):
+class Object1Object2Dataset(Dataset):
     def __init__(self, root_obj1, root_obj2, transform=None):
         self.root_obj1 = root_obj1
         self.root_obj2 = root_obj2
