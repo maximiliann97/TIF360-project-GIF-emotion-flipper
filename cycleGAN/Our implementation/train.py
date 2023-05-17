@@ -190,7 +190,11 @@
 
 
 import torch
+<<<<<<< Updated upstream
 from dataset import Pix2Pix
+=======
+from dataset import ObjectToObjectDataset
+>>>>>>> Stashed changes
 from utils import save_checkpoint, load_checkpoint
 from torch.utils.data import DataLoader
 import torch.nn as nn
@@ -202,9 +206,14 @@ from discriminator_model import Discriminator
 from generator_model import Generator
 
 
+<<<<<<< Updated upstream
 def train_fn(
         disc_obj1, disc_obj2, gen_obj1, gen_obj2, loader, opt_disc, opt_gen, l1, mse, d_scaler, g_scaler, object_1, object_2
 ):
+=======
+def train_fn(disc_obj1, disc_obj2, gen_obj1, gen_obj2, loader, opt_disc, opt_gen, l1, mse, d_scaler, g_scaler, object_1,
+             object_2):
+>>>>>>> Stashed changes
     obj1_reals = 0
     obj1_fakes = 0
     loop = tqdm(loader, leave=True)
@@ -214,7 +223,11 @@ def train_fn(
         obj2 = obj2.to(config.DEVICE)
 
         # Train Discriminators
+<<<<<<< Updated upstream
         with torch.cuda.amp.autocast():
+=======
+        with torch.cuda.amp.autocast():  # torch.cuda.amp.autocast is for float 16
+>>>>>>> Stashed changes
             fake_obj1 = gen_obj1(obj2)
             D_obj1_real = disc_obj1(obj1)
             D_obj1_fake = disc_obj1(fake_obj1.detach())
@@ -224,6 +237,7 @@ def train_fn(
             D_obj1_fake_loss = mse(D_obj1_fake, torch.zeros_like(D_obj1_fake))
             D_obj1_loss = D_obj1_real_loss + D_obj1_fake_loss
 
+<<<<<<< Updated upstream
 
 
 
@@ -238,6 +252,17 @@ def train_fn(
 
             # Combine losses
             D_loss = (D_obj1_loss + D_obj2_loss) / 2
+=======
+            fake_obj2 = gen_obj2(obj1)
+            D_obj2_real = disc_obj2(obj2)
+            D_obj2_fake = disc_obj2(fake_obj2.detach())
+            D_obj2_real_loss = mse(D_obj2_real, torch.ones_like(D_obj2_real))
+            D_obj2_fake_loss = mse(D_obj2_fake, torch.zeros_like(D_obj2_fake))
+            D_obj2_loss = D_obj2_real_loss + D_obj2_fake_loss
+
+            # Combined loss
+            D_loss = (D_obj1_loss + D_obj2_loss) / 2  # divided by 2 mentioned in the paper
+>>>>>>> Stashed changes
 
         opt_disc.zero_grad()
         d_scaler.scale(D_loss).backward()
@@ -252,6 +277,7 @@ def train_fn(
             loss_G_obj1 = mse(D_obj1_fake, torch.ones_like(D_obj1_fake))
             loss_G_obj2 = mse(D_obj2_fake, torch.ones_like(D_obj2_fake))
 
+<<<<<<< Updated upstream
 
             # Cycle loss
             cycle_obj1 = gen_obj1(fake_obj2)
@@ -265,15 +291,34 @@ def train_fn(
             identity_obj1_loss = l1(obj1, identity_obj1)
             identity_obj2_loss = l1(obj2, identity_obj2)
 
+=======
+            # Cycle loss
+            cycle_obj1 = gen_obj1(fake_obj2)
+            cycle_obj2 = gen_obj2(fake_obj1)
+            cycle_obj1_loss = l1(obj1, cycle_obj1)
+            cycle_obj2_loss = l1(obj2, cycle_obj2)
+
+            # Identity loss (remove these for efficiency if you set lambda_identity=0)
+            identity_obj1 = gen_obj1(obj1)
+            identity_obj2 = gen_obj2(obj2)
+            identity_obj1_loss = l1(obj1, identity_obj1)
+            identity_obj2_loss = l1(obj2, identity_obj2)
+
+>>>>>>> Stashed changes
             # Combine all losses
             G_loss = (
                     loss_G_obj1
                     + loss_G_obj2
                     + cycle_obj1_loss * config.LAMBDA_CYCLE
                     + cycle_obj2_loss * config.LAMBDA_CYCLE
+<<<<<<< Updated upstream
                     + identity_obj1_loss
                     + identity_obj2_loss)
 
+=======
+                    + identity_obj1_loss * config.LAMBDA_IDENTITY
+                    + identity_obj2_loss * config.LAMBDA_IDENTITY)
+>>>>>>> Stashed changes
 
         opt_gen.zero_grad()
         g_scaler.scale(G_loss).backward()
@@ -281,12 +326,18 @@ def train_fn(
         g_scaler.update()
 
         if idx % 200 == 0:
+<<<<<<< Updated upstream
             save_image(fake_obj1 * 0.5 + 0.5, f"saved_images/{object_1}_{idx}.png")
             save_image(fake_obj2 * 0.5 + 0.5, f"saved_images/{object_2}_{idx}.png")
+=======
+            save_image(fake_obj1 * 0.5 + 0.5, f"saved_images/fake_{object_1}_{idx}.png")
+            save_image(fake_obj2 * 0.5 + 0.5, f"saved_images/fake_{object_2}_{idx}.png")
+>>>>>>> Stashed changes
 
         loop.set_postfix(obj1_real=obj1_reals / (idx + 1), obj1_fake=obj1_fakes / (idx + 1))
 
 
+<<<<<<< Updated upstream
 
 
 
@@ -297,10 +348,17 @@ def main(object_1:str, object_2:str):
     disc_obj2 = Discriminator(in_channels=3).to(config.DEVICE)
     gen_obj1 = Generator(img_channels=3, num_residuals=9).to(config.DEVICE)
     gen_obj2 = Generator(img_channels=3, num_residuals=9).to(config.DEVICE)
+=======
+def main(object_1: str, object_2: str):
+    disc_obj1 = Discriminator(in_channels=3).to(config.DEVICE)  # discriminator check if there is real or fake obj1
+    disc_obj2 = Discriminator(in_channels=3).to(config.DEVICE)  # discriminator check if there is real or fake obj2
+    gen_obj1 = Generator(img_channels=3, num_residuals=9).to(config.DEVICE)  # generator generates a fake obj1
+    gen_obj2 = Generator(img_channels=3, num_residuals=9).to(config.DEVICE)  # generator generates a fake obj2
+>>>>>>> Stashed changes
     opt_disc = optim.Adam(
         list(disc_obj1.parameters()) + list(disc_obj2.parameters()),
         lr=config.LEARNING_RATE,
-        betas=(0.5, 0.999),
+        betas=(0.5, 0.999),  # these values specified in paper
     )
 
     opt_gen = optim.Adam(
@@ -338,11 +396,16 @@ def main(object_1:str, object_2:str):
             config.LEARNING_RATE,
         )
 
+<<<<<<< Updated upstream
     dataset = Pix2Pix(
+=======
+    dataset = ObjectToObjectDataset(
+>>>>>>> Stashed changes
         root_obj1=config.TRAIN_DIR + '/' + object_1,
         root_obj2=config.TRAIN_DIR + '/' + object_2,
         transform=config.transforms,
     )
+<<<<<<< Updated upstream
     val_dataset = Pix2Pix(
         root_obj1=config.VAL_DIR + '/' + object_1,
         root_obj2=config.VAL_DIR + '/' + object_2,
@@ -354,6 +417,19 @@ def main(object_1:str, object_2:str):
         shuffle=False,
         pin_memory=True,
     )
+=======
+    # val_dataset = ObjectToObjectDataset(
+    #     root_obj1=config.VAL_DIR + '/' + object_1,
+    #     root_obj2=config.VAL_DIR + '/' + object_2,
+    #     transform=config.transforms,
+    # )
+    # val_loader = DataLoader(
+    #     val_dataset,
+    #     batch_size=1,
+    #     shuffle=False,
+    #     pin_memory=True,
+    # )
+>>>>>>> Stashed changes
     loader = DataLoader(
         dataset,
         batch_size=config.BATCH_SIZE,
@@ -365,6 +441,7 @@ def main(object_1:str, object_2:str):
     d_scaler = torch.cuda.amp.GradScaler()
 
     for epoch in range(config.NUM_EPOCHS):
+        print('epoch: ', epoch)
         train_fn(
             disc_obj1,
             disc_obj2,
@@ -378,7 +455,11 @@ def main(object_1:str, object_2:str):
             d_scaler,
             g_scaler,
             object_1,
+<<<<<<< Updated upstream
             object_2
+=======
+            object_2,
+>>>>>>> Stashed changes
         )
 
         if config.SAVE_MODEL:
@@ -389,4 +470,8 @@ def main(object_1:str, object_2:str):
 
 
 if __name__ == "__main__":
+<<<<<<< Updated upstream
     main('happy', 'sad')
+=======
+    main('horses', 'zebras')
+>>>>>>> Stashed changes

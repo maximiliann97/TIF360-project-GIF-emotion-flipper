@@ -40,7 +40,11 @@ import os
 from torch.utils.data import Dataset
 import numpy as np
 
+<<<<<<< Updated upstream
 class Pix2Pix(Dataset):
+=======
+class ObjectToObjectDataset(Dataset):
+>>>>>>> Stashed changes
     def __init__(self, root_obj1, root_obj2, transform=None):
         self.root_obj1 = root_obj1
         self.root_obj2 = root_obj2
@@ -69,6 +73,7 @@ class Pix2Pix(Dataset):
             augmentations = self.transform(image=obj1_img, image0=obj2_img)
             obj1_img = augmentations["image"]
             obj2_img = augmentations["image0"]
+<<<<<<< Updated upstream
 
         return obj1_img, obj2_img
 
@@ -76,4 +81,7 @@ class Pix2Pix(Dataset):
 
 
 
+=======
+>>>>>>> Stashed changes
 
+        return obj1_img, obj2_img
