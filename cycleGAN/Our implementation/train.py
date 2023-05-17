@@ -191,10 +191,22 @@ def main(object_1:str, object_2:str):
         )
 
         if config.SAVE_MODEL:
-            save_checkpoint(gen_obj1, opt_gen, filename=config.CHECKPOINT_GEN_OBJ1)
-            save_checkpoint(gen_obj2, opt_gen, filename=config.CHECKPOINT_GEN_OBJ2)
-            save_checkpoint(disc_obj1, opt_disc, filename=config.CHECKPOINT_DISC_OBJ1)
-            save_checkpoint(disc_obj2, opt_disc, filename=config.CHECKPOINT_DISC_OBJ2)
+
+            # if epoch % 10:
+            #     save_checkpoint(gen_obj1, opt_gen, filename= str(epoch) + config.CHECKPOINT_GEN_OBJ1)
+            #     save_checkpoint(gen_obj2, opt_gen, filename= str(epoch) + config.CHECKPOINT_GEN_OBJ2)
+            #     save_checkpoint(disc_obj1, opt_disc, filename= str(epoch) + config.CHECKPOINT_DISC_OBJ1)
+            #     save_checkpoint(disc_obj2, opt_disc, filename= str(epoch) + config.CHECKPOINT_DISC_OBJ2)
+
+            # save_checkpoint(gen_obj1, opt_gen, filename=config.CHECKPOINT_GEN_OBJ1)
+            # save_checkpoint(gen_obj2, opt_gen, filename=config.CHECKPOINT_GEN_OBJ2)
+            # save_checkpoint(disc_obj1, opt_disc, filename=config.CHECKPOINT_DISC_OBJ1)
+            # save_checkpoint(disc_obj2, opt_disc, filename=config.CHECKPOINT_DISC_OBJ2)
+
+            save_checkpoint(gen_obj1, opt_gen, filename=str(epoch) + config.CHECKPOINT_GEN_OBJ1)
+            save_checkpoint(gen_obj2, opt_gen, filename=str(epoch) + config.CHECKPOINT_GEN_OBJ2)
+            save_checkpoint(disc_obj1, opt_disc, filename=str(epoch) + config.CHECKPOINT_DISC_OBJ1)
+            save_checkpoint(disc_obj2, opt_disc, filename=str(epoch) + config.CHECKPOINT_DISC_OBJ2)
 
 
 if __name__ == "__main__":
