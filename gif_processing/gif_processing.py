@@ -132,7 +132,7 @@ class GifFlipper:
 
 				# Resizes face to 96x96 pixels
 				face_img = face_img.resize((96, 96))
-				flipped_face = ImageOps.mirror(face_img)
+				flipped_face = ImageOps.flip(face_img)
 				flipped_face = flipped_face.resize((face.shape[1], face.shape[0]))
 				
 				# Create an alpha mask
@@ -186,8 +186,8 @@ if __name__ == "__main__":
 
 	gif_flipper.load_frames("mike.gif")
 	gif_flipper.detect_faces()
-	gif_flipper.flip_faces(margin=15, fade_type="sigmoid")
-	gif_flipper.build_flipped_gif("testing")
+	gif_flipper.flip_faces(margin=35, fade_type="sigmoid")
+	gif_flipper.build_flipped_gif("testing2")
 	#View the flipped gif once
 	#GifViewer(flipped_gif_path).view_gif()
 
