@@ -69,7 +69,7 @@ class GifFlipper:
 		self.flipped_frames = []
 
 	# Loads a GIF from a path
-	def load_frames(self, path):
+	def load_frames(self, filename):
 		# Resets all variables
 		self.reset()
 
@@ -78,7 +78,7 @@ class GifFlipper:
 		temp_root.withdraw()
 
 		# Loads gif file
-		gif = Image.open(path)
+		gif = Image.open("data/" + filename)
 
 		# Extracts total number of frames
 		self.n_frames = gif.n_frames
@@ -129,7 +129,11 @@ class GifFlipper:
 			for j in range(len(self.faces[i])):
 				face = self.faces[i][j]
 				face_img = Image.fromarray(face)
+
+				# Resizes face to 96x96 pixels
+				face_img = face_img.resize((96, 96))
 				flipped_face = ImageOps.mirror(face_img)
+				flipped_face = flipped_face.resize((face.shape[1], face.shape[0]))
 				
 				# Create an alpha mask
 				width, height = flipped_face.size
@@ -137,6 +141,8 @@ class GifFlipper:
 
 				# Create a mask for the fade effect
 				fade_mask = Image.new('L', (width, height), 255)
+
+
 				for y in range(height):
 					for x in range(width):
 						# Calculate distance to nearest edge
@@ -172,18 +178,16 @@ class GifFlipper:
 		
 if __name__ == "__main__":	
 	# Script path
-	script_path = os.path.dirname(os.path.realpath(__file__))
 	#Initiate the flipper
 	gif_flipper = GifFlipper()
 
-	gif_path = os.path.join(script_path, "data/mike.gif")
 	#View the original gif once
 	#GifViewer(gif_path).view_gif()
 
-	gif_flipper.load_frames(gif_path)
+	gif_flipper.load_frames("mike.gif")
 	gif_flipper.detect_faces()
 	gif_flipper.flip_faces(margin=15, fade_type="sigmoid")
-	gif_flipper.build_flipped_gif("mike_sigmoid")
+	gif_flipper.build_flipped_gif("testing")
 	#View the flipped gif once
 	#GifViewer(flipped_gif_path).view_gif()
 
