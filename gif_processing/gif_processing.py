@@ -5,6 +5,9 @@ import sys
 import cv2
 import numpy as np
 from PIL import ImageOps
+import torch
+import torchvision.transforms as transforms
+
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -58,6 +61,9 @@ class GifFlipper:
 		
 		#List of coordinates of faces in each frame. Each element is a list of coordinates on the form [x,y,w,h]
 		self.coordinates = []
+
+		self.gen_happy = None
+		self.gen_sad = None
 
 	# Resets to empty GIF
 	def reset(self):
@@ -122,8 +128,32 @@ class GifFlipper:
 			self.faces[i] = (faces_cut_out)
 			self.coordinates.append(coordinates)
 
+	def load_generators(self):
+		self.gen_happy = torch.load("models/gen_happy.pth.tar", map_location=torch.device('cpu'))
+		self.gen_happy.eval()
+		self.gen_sad = torch.load("models/gen_sad.pth.tar", map_location=torch.device('cpu'))
+		self.gen_sad.eval()
 
-	def flip_faces(self, margin=10, fade_type="linear", sig_param=4):
+
+	def transform_face(self, face_img, generator, device):
+		to_tensor = transforms.ToTensor()
+		to_image = transforms.ToPILImage()
+
+		face_tensor = to_tensor(face_img).to(device)  # Move the tensor to the specified device
+
+		with torch.no_grad():
+			transformed_face = generator(face_tensor)
+
+		transformed_face = to_image(transformed_face.cpu())
+
+		return transformed_face
+
+	
+
+	def flip_faces(self, margin=10, fade_type="linear", sig_param=4, input_emotion="happy"):
+
+		device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
 		for i in range(self.n_frames):
 			flipped_frame = self.frames[i].copy()
 			for j in range(len(self.faces[i])):
@@ -132,11 +162,15 @@ class GifFlipper:
 
 				# Resizes face to 96x96 pixels
 				face_img = face_img.resize((96, 96))
-				flipped_face = ImageOps.flip(face_img)
-				flipped_face = flipped_face.resize((face.shape[1], face.shape[0]))
 				
+				# Transform face
+				if input_emotion == "happy":
+					transformed_face = self.transform_face(face_img, self.gen_sad, device)
+				else:
+					transformed_face = self.transform_face(face_img, self.gen_happy, device)
+
 				# Create an alpha mask
-				width, height = flipped_face.size
+				width, height = transformed_face.size
 				mask = Image.new('L', (width, height), 0)
 
 				# Create a mask for the fade effect
@@ -159,10 +193,12 @@ class GifFlipper:
 				mask = Image.blend(mask, fade_mask, alpha=1)
 
 				# Create a 4-channel image (RGB + alpha)
-				flipped_face.putalpha(mask)
+				transformed_face.putalpha(mask)
+
+				transformed_face = transformed_face.resize((face.shape[1], face.shape[0]))
 
 				# Paste the flipped face onto the frame
-				flipped_frame.paste(flipped_face, tuple(self.coordinates[i][j][0][0:2]), flipped_face)
+				flipped_frame.paste(transformed_face, tuple(self.coordinates[i][j][0][0:2]), transformed_face)
 			self.flipped_frames.append(flipped_frame)
 
 
@@ -177,19 +213,16 @@ class GifFlipper:
 		
 		
 if __name__ == "__main__":	
-	# Script path
-	#Initiate the flipper
 	gif_flipper = GifFlipper()
 
-	#View the original gif once
-	#GifViewer(gif_path).view_gif()
+	filename = "sad_mike"
 
-	gif_flipper.load_frames("mike.gif")
+	gif_flipper.load_generators()
+	gif_flipper.load_frames(filename + ".gif")
 	gif_flipper.detect_faces()
-	gif_flipper.flip_faces(margin=35, fade_type="sigmoid")
-	gif_flipper.build_flipped_gif("testing2")
-	#View the flipped gif once
-	#GifViewer(flipped_gif_path).view_gif()
+	gif_flipper.flip_faces(margin=20, fade_type="sigmoid", sig_param=6, input_emotion="happy")
+	gif_flipper.build_flipped_gif(filename + "_flipped")
+
 
 
 
