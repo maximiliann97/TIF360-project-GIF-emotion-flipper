@@ -4,8 +4,12 @@ import os
 import sys
 import cv2
 import numpy as np
+from PIL import ImageOps
 
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
 
+# Class to view a GIF
 class GifViewer:
 	def __init__(self, gif_path, loop=True):
 		self.root = tk.Tk()
@@ -39,8 +43,7 @@ class GifViewer:
 		self.update_gif()
 		self.root.mainloop()
 		
-
-
+# Class to modify a GIF
 class GifFlipper:
 	def __init__(self):
 		# List of PIL.Image.Image frames
@@ -56,6 +59,7 @@ class GifFlipper:
 		#List of coordinates of faces in each frame. Each element is a list of coordinates on the form [x,y,w,h]
 		self.coordinates = []
 
+	# Resets to empty GIF
 	def reset(self):
 		self.frames = []
 		self.n_frames = 0
@@ -64,6 +68,7 @@ class GifFlipper:
 		self.coordinates = []
 		self.flipped_frames = []
 
+	# Loads a GIF from a path
 	def load_frames(self, path):
 		# Resets all variables
 		self.reset()
@@ -117,31 +122,55 @@ class GifFlipper:
 			self.faces[i] = (faces_cut_out)
 			self.coordinates.append(coordinates)
 
-	def flip_faces(self):#This funcition is not tested yet
-		#This function assumes that the frames have been loaded
-		#and that the faces have been detected
+
+	def flip_faces(self, margin=10, fade_type="linear", sig_param=4):
 		for i in range(self.n_frames):
 			flipped_frame = self.frames[i].copy()
 			for j in range(len(self.faces[i])):
-				#####Here we flip the faces happy/sad##### 
-				#temporarily, we just flip the faces horisontally
-				flipped_face = np.fliplr(self.faces[i][j])
-				flipped_frame.paste(Image.fromarray(flipped_face), tuple(self.coordinates[i][j][0][0:2])) #width and height not necessary here
+				face = self.faces[i][j]
+				face_img = Image.fromarray(face)
+				flipped_face = ImageOps.mirror(face_img)
+				
+				# Create an alpha mask
+				width, height = flipped_face.size
+				mask = Image.new('L', (width, height), 0)
+
+				# Create a mask for the fade effect
+				fade_mask = Image.new('L', (width, height), 255)
+				for y in range(height):
+					for x in range(width):
+						# Calculate distance to nearest edge
+						dist_to_edge = min(x, width-x, y, height-y)
+						# If the distance is less than the margin, decrease the opacity linearly
+						if fade_type == "linear":
+							opacity = int(255 * (dist_to_edge / margin))
+						elif fade_type == "sigmoid":
+							opacity = int(255 * sigmoid(2*sig_param * (dist_to_edge / margin) - sig_param))
+						
+						fade_mask.putpixel((x, y), opacity)
+
+				# Blend the two masks
+				mask = Image.blend(mask, fade_mask, alpha=1)
+
+				# Create a 4-channel image (RGB + alpha)
+				flipped_face.putalpha(mask)
+
+				# Paste the flipped face onto the frame
+				flipped_frame.paste(flipped_face, tuple(self.coordinates[i][j][0][0:2]), flipped_face)
 			self.flipped_frames.append(flipped_frame)
-	
-	def build_flipped_gif(self, path):
+
+
+	def build_flipped_gif(self, filename):
 		#Build GIF from flipped_frames and save to path
 		#This function assumes that the frames have been loaded
 		#and that the faces have been detected and flipped
 		#and that the flipped frames have been built
 		#and that the frame durations have been loaded
 		flipped_gif = Image.new('RGB', self.flipped_frames[0].size)
-		flipped_gif.save(path, save_all=True, append_images=self.flipped_frames[:-1], duration=self.frame_durations, loop=0)
+		flipped_gif.save("output/" + filename + ".gif", save_all=True, append_images=self.flipped_frames[:-1], duration=self.frame_durations, loop=0)
 		
 		
-
-if __name__ == "__main__":
-
+if __name__ == "__main__":	
 	# Script path
 	script_path = os.path.dirname(os.path.realpath(__file__))
 	#Initiate the flipper
@@ -149,13 +178,12 @@ if __name__ == "__main__":
 
 	gif_path = os.path.join(script_path, "data/mike.gif")
 	#View the original gif once
-	GifViewer(gif_path).view_gif()
+	#GifViewer(gif_path).view_gif()
 
 	gif_flipper.load_frames(gif_path)
 	gif_flipper.detect_faces()
-	gif_flipper.flip_faces()
-	flipped_gif_path = os.path.join(script_path, "output/mike_flipped.gif")
-	gif_flipper.build_flipped_gif(flipped_gif_path)
+	gif_flipper.flip_faces(margin=15, fade_type="sigmoid")
+	gif_flipper.build_flipped_gif("mike_sigmoid")
 	#View the flipped gif once
 	#GifViewer(flipped_gif_path).view_gif()
 
