@@ -3,7 +3,7 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-TRAIN_DIR = "/content/drive/MyDrive/happysaddata"
+TRAIN_DIR = "/content/drive/MyDrive/happysaddata"       # the directory where the data set is
 BATCH_SIZE = 1
 LEARNING_RATE = 1e-5
 LAMBDA_IDENTITY = 0.0

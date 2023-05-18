@@ -1,8 +1,9 @@
 import random, torch, os, numpy as np
 import torch.nn as nn
-import config
+import configurations
 import copy
 
+## saving checkpoints to be able to load the model and continue the training process
 def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
     checkpoint = {
@@ -11,14 +12,16 @@ def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
     }
     torch.save(checkpoint, filename)
 
+
+# To be able to save the generators
 def save_model(model, filename):
     torch.save(model, filename)
 
 
-
+# Code to load a checkpoint
 def load_checkpoint(checkpoint_file, model, optimizer, lr):
     print("=> Loading checkpoint")
-    checkpoint = torch.load(checkpoint_file, map_location=config.DEVICE)
+    checkpoint = torch.load(checkpoint_file, map_location=configurations.DEVICE)
     model.load_state_dict(checkpoint["state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer"])
 
@@ -27,13 +30,3 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
     for param_group in optimizer.param_groups:
         param_group["lr"] = lr
 
-
-def seed_everything(seed=42):
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
