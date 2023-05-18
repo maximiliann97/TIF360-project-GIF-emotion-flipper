@@ -4,7 +4,7 @@ from utils import save_checkpoint, load_checkpoint, save_model
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.optim as optim
-import configurations
+import config
 from tqdm import tqdm
 from torchvision.utils import save_image
 from discriminator_model import Discriminator
@@ -20,8 +20,8 @@ def train_fn(
     loop = tqdm(loader, leave=True)
 
     for idx, (obj1, obj2) in enumerate(loop):
-        obj1 = obj1.to(configurations.DEVICE)
-        obj2 = obj2.to(configurations.DEVICE)
+        obj1 = obj1.to(config.DEVICE)
+        obj2 = obj2.to(config.DEVICE)
 
         # Train Discriminators
         with torch.cuda.amp.autocast():
@@ -73,8 +73,8 @@ def train_fn(
             G_loss = (
                     loss_G_obj1
                     + loss_G_obj2
-                    + cycle_obj1_loss * configurations.LAMBDA_CYCLE
-                    + cycle_obj2_loss * configurations.LAMBDA_CYCLE
+                    + cycle_obj1_loss * config.LAMBDA_CYCLE
+                    + cycle_obj2_loss * config.LAMBDA_CYCLE
                 # + identity_obj1_loss
                 # + identity_obj2_loss
             )
@@ -84,76 +84,89 @@ def train_fn(
         g_scaler.step(opt_gen)
         g_scaler.update()
 
-        if idx % 200 == 0:
+        if idx % 300 == 0:
             save_image(fake_obj1 * 0.5 + 0.5, f"/content/drive/MyDrive/saved_images/{object_1}_{idx}.png")
             save_image(fake_obj2 * 0.5 + 0.5, f"/content/drive/MyDrive/saved_images/{object_2}_{idx}.png")
+            # Save real happy and sad images
+            save_image(obj1 * 0.5 + 0.5, f"/content/drive/MyDrive/saved_images/real_{object_1}_{idx}.png")
+            save_image(obj2 * 0.5 + 0.5, f"/content/drive/MyDrive/saved_images/real_{object_2}_{idx}.png")
 
         loop.set_postfix(obj1_real=obj1_reals / (idx + 1), obj1_fake=obj1_fakes / (idx + 1))
 
 
 def main(object_1: str, object_2: str):
-    disc_obj1 = Discriminator(in_channels=3).to(configurations.DEVICE)
-    disc_obj2 = Discriminator(in_channels=3).to(configurations.DEVICE)
-    gen_obj1 = Generator(img_channels=3, num_residuals=9).to(configurations.DEVICE)
-    gen_obj2 = Generator(img_channels=3, num_residuals=9).to(configurations.DEVICE)
+    disc_obj1 = Discriminator(in_channels=3).to(config.DEVICE)
+    disc_obj2 = Discriminator(in_channels=3).to(config.DEVICE)
+    gen_obj1 = Generator(img_channels=3, num_residuals=9).to(config.DEVICE)
+    gen_obj2 = Generator(img_channels=3, num_residuals=9).to(config.DEVICE)
     opt_disc = optim.Adam(
         list(disc_obj1.parameters()) + list(disc_obj2.parameters()),
-        lr=configurations.LEARNING_RATE,
+        lr=config.LEARNING_RATE,
         betas=(0.5, 0.999),
     )
 
     opt_gen = optim.Adam(
         list(gen_obj1.parameters()) + list(gen_obj2.parameters()),
-        lr=configurations.LEARNING_RATE,
+        lr=config.LEARNING_RATE,
         betas=(0.5, 0.999),
     )
 
     L1 = nn.L1Loss()
     mse = nn.MSELoss()
 
-    if configurations.LOAD_MODEL:
+    if config.LOAD_MODEL:
         load_checkpoint(
-            "",       #specify the path etc where gen_obj1 is. for instance if object_1 = happy_generator then you should add its path in a string
+            "/content/drive/MyDrive/generators/gen_cropped_happy_detected_only.pth.tar",
             gen_obj1,
             opt_gen,
-            configurations.LEARNING_RATE,
+            config.LEARNING_RATE,
         )
         load_checkpoint(
-            "",
+            "/content/drive/MyDrive/generators/gen_cropped_sad_detected_only.pth.tar",
             gen_obj2,
             opt_gen,
-            configurations.LEARNING_RATE,
+            config.LEARNING_RATE,
         )
         load_checkpoint(
-            "",
+            "/content/drive/MyDrive/discriminators/disc_cropped_happy_detected_only.pth.tar",
             disc_obj1,
             opt_disc,
-            configurations.LEARNING_RATE,
+            config.LEARNING_RATE,
         )
         load_checkpoint(
-            "",
+            "/content/drive/MyDrive/discriminators/disc_cropped_sad_detected_only.pth.tar",
             disc_obj2,
             opt_disc,
-            configurations.LEARNING_RATE,
+            config.LEARNING_RATE,
         )
 
     dataset = Object1Object2Dataset(
-        root_obj1=configurations.TRAIN_DIR + '/' + object_1,
-        root_obj2=configurations.TRAIN_DIR + '/' + object_2,
-        transform=configurations.transforms,
+        root_obj1=config.TRAIN_DIR + '/' + object_1,
+        root_obj2=config.TRAIN_DIR + '/' + object_2,
+        transform=config.transforms,
     )
-
+    # val_dataset = Object1Object2Dataset(
+    #     root_obj1=config.VAL_DIR + '/' + object_1,
+    #     root_obj2=config.VAL_DIR + '/' + object_2,
+    #     transform=config.transforms,
+    # )
+    # val_loader = DataLoader(
+    #     val_dataset,
+    #     batch_size=1,
+    #     shuffle=False,
+    #     pin_memory=True,
+    # )
     loader = DataLoader(
         dataset,
-        batch_size=configurations.BATCH_SIZE,
+        batch_size=config.BATCH_SIZE,
         shuffle=True,
-        num_workers=configurations.NUM_WORKERS,
+        num_workers=config.NUM_WORKERS,
         pin_memory=True,
     )
     g_scaler = torch.cuda.amp.GradScaler()
     d_scaler = torch.cuda.amp.GradScaler()
 
-    for epoch in range(configurations.NUM_EPOCHS):
+    for epoch in range(config.NUM_EPOCHS):
         print('epoch: ', epoch)
         train_fn(
             disc_obj1,
@@ -171,35 +184,35 @@ def main(object_1: str, object_2: str):
             object_2
         )
 
-        if configurations.SAVE_MODEL:
+        if config.SAVE_MODEL:
 
             if epoch % 50 == 0:
                 save_checkpoint(gen_obj1, opt_gen,
-                                filename=f"/content/drive/MyDrive/generators/epoch_{epoch}_gen_{object_1}.pth.tar")     #saving happy generator_checkpoint epoch%50==0
+                                filename=f"/content/drive/MyDrive/generators/epoch_{epoch}_gen_{object_1}.pth.tar")
                 save_checkpoint(gen_obj2, opt_gen,
-                                filename=f"/content/drive/MyDrive/generators/epoch_{epoch}_gen_{object_2}.pth.tar")     #saving sad generator_checkpoint epoch%50==0
+                                filename=f"/content/drive/MyDrive/generators/epoch_{epoch}_gen_{object_2}.pth.tar")
                 save_checkpoint(disc_obj1, opt_disc,
-                                filename=f"/content/drive/MyDrive/discriminators/epoch_{epoch}_disc_{object_1}.pth.tar")     #saving happy discriminator_checkpoint epoch%50==0
+                                filename=f"/content/drive/MyDrive/discriminators/epoch_{epoch}_disc_{object_1}.pth.tar")
                 save_checkpoint(disc_obj2, opt_disc,
-                                filename=f"/content/drive/MyDrive/discriminators/epoch_{epoch}_disc_{object_2}.pth.tar")    #saving sad discriminator_checkpoint epoch%50 ==0
-                save_model(gen_obj1, f"/content/drive/MyDrive/generator_models/epoch_{epoch}_gen_{object_1}.pth.tar")       #saving happy generator model epoch%50==0
-                save_model(gen_obj2, f"/content/drive/MyDrive/generator_models/epoch_{epoch}_gen_{object_2}.pth.tar")       #saving sad generator model epoch%50==0
+                                filename=f"/content/drive/MyDrive/discriminators/epoch_{epoch}_disc_{object_2}.pth.tar")
+                save_model(gen_obj1, f"/content/drive/MyDrive/generator_models/epoch_{epoch}_gen_{object_1}.pth.tar")
+                save_model(gen_obj2, f"/content/drive/MyDrive/generator_models/epoch_{epoch}_gen_{object_2}.pth.tar")
 
             save_checkpoint(gen_obj1, opt_gen,
-                            filename=f"/content/drive/MyDrive/generators/gen_{object_1}.pth.tar")       #saving happy generator_checkpoint
+                            filename=f"/content/drive/MyDrive/generators/gen_{object_1}.pth.tar")
             save_checkpoint(gen_obj2, opt_gen,
-                            filename=f"/content/drive/MyDrive/generators/gen_{object_2}.pth.tar")       #saving sad generator_checkpoint
+                            filename=f"/content/drive/MyDrive/generators/gen_{object_2}.pth.tar")
             save_checkpoint(disc_obj1, opt_disc,
-                            filename=f"/content/drive/MyDrive/discriminators/disc_{object_1}.pth.tar")  #saving happy discriminator_checkpoint
+                            filename=f"/content/drive/MyDrive/discriminators/disc_{object_1}.pth.tar")
             save_checkpoint(disc_obj2, opt_disc,
-                            filename=f"/content/drive/MyDrive/discriminators/disc_{object_2}.pth.tar")  #saving sad discriminator_checkpoint
-            save_model(gen_obj1, f"/content/drive/MyDrive/generator_models/gen_{object_1}.pth.tar")     #saving happy generator model
-            save_model(gen_obj2, f"/content/drive/MyDrive/generator_models/gen_{object_2}.pth.tar")     #saving sad generator model
+                            filename=f"/content/drive/MyDrive/discriminators/disc_{object_2}.pth.tar")
+            save_model(gen_obj1, f"/content/drive/MyDrive/generator_models/gen_{object_1}.pth.tar")
+            save_model(gen_obj2, f"/content/drive/MyDrive/generator_models/gen_{object_2}.pth.tar")
 
 
 if __name__ == "__main__":
-    object_1 = 'cropped_happy_detected_only'      # This is the folder where all the happy images are
-    object_2 = 'cropped_sad_detected_only'        # This is the folder where all the sad images are
+    object_1 = 'cropped_happy_detected_only'
+    object_2 = 'cropped_sad_detected_only'
     main(object_1, object_2)
 
 
