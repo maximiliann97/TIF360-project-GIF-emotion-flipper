@@ -8,5 +8,3 @@ cycleGAN/Our implementation/critich.pth.tar
 cycleGAN/Our implementation/criticz.pth.tar
 cycleGAN/Our implementation/genh.pth.tar
 cycleGAN/Our implementation/genz.pth.tar
-gif_processing/generator_model.py:Zone.Identifier
-gif_processing/data/sad_mike.gif:Zone.Identifier
