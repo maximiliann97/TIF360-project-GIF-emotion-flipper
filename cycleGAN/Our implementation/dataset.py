@@ -34,3 +34,5 @@ class Object1Object2Dataset(Dataset):
             obj2_img = augmentations["image0"]
 
         return obj1_img, obj2_img
+
+print('hej')
