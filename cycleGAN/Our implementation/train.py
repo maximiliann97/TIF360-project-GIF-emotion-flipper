@@ -1,6 +1,6 @@
 import torch
 from dataset import Object1Object2Dataset
-from utils import save_checkpoint, load_checkpoint
+from utils import save_checkpoint, load_checkpoint, save_model
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.optim as optim
@@ -12,7 +12,8 @@ from generator_model import Generator
 
 
 def train_fn(
-        disc_obj1, disc_obj2, gen_obj1, gen_obj2, loader, opt_disc, opt_gen, l1, mse, d_scaler, g_scaler, object_1, object_2
+        disc_obj1, disc_obj2, gen_obj1, gen_obj2, loader, opt_disc, opt_gen, l1, mse, d_scaler, g_scaler, object_1,
+        object_2
 ):
     obj1_reals = 0
     obj1_fakes = 0
@@ -32,11 +33,6 @@ def train_fn(
             D_obj1_real_loss = mse(D_obj1_real, torch.ones_like(D_obj1_real))
             D_obj1_fake_loss = mse(D_obj1_fake, torch.zeros_like(D_obj1_fake))
             D_obj1_loss = D_obj1_real_loss + D_obj1_fake_loss
-
-
-
-
-
 
             fake_obj2 = gen_obj2(obj1)
             D_obj2_real = disc_obj2(obj2)
@@ -61,7 +57,6 @@ def train_fn(
             loss_G_obj1 = mse(D_obj1_fake, torch.ones_like(D_obj1_fake))
             loss_G_obj2 = mse(D_obj2_fake, torch.ones_like(D_obj2_fake))
 
-
             # Cycle loss
             cycle_obj1 = gen_obj1(fake_obj2)
             cycle_obj2 = gen_obj2(fake_obj1)
@@ -69,10 +64,10 @@ def train_fn(
             cycle_obj2_loss = l1(obj2, cycle_obj2)
 
             # Identity loss (remove these for efficiency if you set lambda_identity=0)
-            identity_obj1 = gen_obj1(obj1)
-            identity_obj2 = gen_obj2(obj2)
-            identity_obj1_loss = l1(obj1, identity_obj1)
-            identity_obj2_loss = l1(obj2, identity_obj2)
+            # identity_obj1 = gen_obj1(obj1)
+            # identity_obj2 = gen_obj2(obj2)
+            # identity_obj1_loss = l1(obj1, identity_obj1)
+            # identity_obj2_loss = l1(obj2, identity_obj2)
 
             # Combine all losses
             G_loss = (
@@ -80,9 +75,9 @@ def train_fn(
                     + loss_G_obj2
                     + cycle_obj1_loss * config.LAMBDA_CYCLE
                     + cycle_obj2_loss * config.LAMBDA_CYCLE
-                    + identity_obj1_loss
-                    + identity_obj2_loss)
-
+                # + identity_obj1_loss
+                # + identity_obj2_loss
+            )
 
         opt_gen.zero_grad()
         g_scaler.scale(G_loss).backward()
@@ -90,18 +85,13 @@ def train_fn(
         g_scaler.update()
 
         if idx % 200 == 0:
-            save_image(fake_obj1 * 0.5 + 0.5, f"saved_images/{object_1}_{idx}.png")
-            save_image(fake_obj2 * 0.5 + 0.5, f"saved_images/{object_2}_{idx}.png")
+            save_image(fake_obj1 * 0.5 + 0.5, f"/content/drive/MyDrive/saved_images/{object_1}_{idx}.png")
+            save_image(fake_obj2 * 0.5 + 0.5, f"/content/drive/MyDrive/saved_images/{object_2}_{idx}.png")
 
         loop.set_postfix(obj1_real=obj1_reals / (idx + 1), obj1_fake=obj1_fakes / (idx + 1))
 
 
-
-
-
-
-def main(object_1:str, object_2:str):
-
+def main(object_1: str, object_2: str):
     disc_obj1 = Discriminator(in_channels=3).to(config.DEVICE)
     disc_obj2 = Discriminator(in_channels=3).to(config.DEVICE)
     gen_obj1 = Generator(img_channels=3, num_residuals=9).to(config.DEVICE)
@@ -123,25 +113,25 @@ def main(object_1:str, object_2:str):
 
     if config.LOAD_MODEL:
         load_checkpoint(
-            f"gen_{object_1}.pth.tar",
+            f"0gen_{object_1}.pth.tar",
             gen_obj1,
             opt_gen,
             config.LEARNING_RATE,
         )
         load_checkpoint(
-            f"gen_{object_2}.pth.tar",
+            f"0gen_{object_2}.pth.tar",
             gen_obj2,
             opt_gen,
             config.LEARNING_RATE,
         )
         load_checkpoint(
-            f"disc_{object_1}.pth.tar",
+            f"0disc_{object_1}.pth.tar",
             disc_obj1,
             opt_disc,
             config.LEARNING_RATE,
         )
         load_checkpoint(
-            f"disc_{object_2}.pth.tar",
+            f"0disc_{object_2}.pth.tar",
             disc_obj2,
             opt_disc,
             config.LEARNING_RATE,
@@ -174,6 +164,7 @@ def main(object_1:str, object_2:str):
     d_scaler = torch.cuda.amp.GradScaler()
 
     for epoch in range(config.NUM_EPOCHS):
+        print('epoch: ', epoch)
         train_fn(
             disc_obj1,
             disc_obj2,
@@ -191,23 +182,34 @@ def main(object_1:str, object_2:str):
         )
 
         if config.SAVE_MODEL:
-            
-            # if epoch % 10:
-            #     save_checkpoint(gen_obj1, opt_gen, filename= str(epoch) + config.CHECKPOINT_GEN_OBJ1)
-            #     save_checkpoint(gen_obj2, opt_gen, filename= str(epoch) + config.CHECKPOINT_GEN_OBJ2)
-            #     save_checkpoint(disc_obj1, opt_disc, filename= str(epoch) + config.CHECKPOINT_DISC_OBJ1)
-            #     save_checkpoint(disc_obj2, opt_disc, filename= str(epoch) + config.CHECKPOINT_DISC_OBJ2)
-                
-            # save_checkpoint(gen_obj1, opt_gen, filename=config.CHECKPOINT_GEN_OBJ1)
-            # save_checkpoint(gen_obj2, opt_gen, filename=config.CHECKPOINT_GEN_OBJ2)
-            # save_checkpoint(disc_obj1, opt_disc, filename=config.CHECKPOINT_DISC_OBJ1)
-            # save_checkpoint(disc_obj2, opt_disc, filename=config.CHECKPOINT_DISC_OBJ2)
 
-            save_checkpoint(gen_obj1, opt_gen, filename=str(epoch) + f"gen_{object_1}.pth.tar")
-            save_checkpoint(gen_obj2, opt_gen, filename=str(epoch) + f"gen_{object_2}.pth.tar")
-            save_checkpoint(disc_obj1, opt_disc, filename=str(epoch) + f"disc_{object_1}.pth.tar")
-            save_checkpoint(disc_obj2, opt_disc, filename=str(epoch) + f"disc_{object_2}.pth.tar")
+            if epoch % 50 == 0:
+                save_checkpoint(gen_obj1, opt_gen,
+                                filename=f"/content/drive/MyDrive/generators/epoch_{epoch}_gen_{object_1}.pth.tar")
+                save_checkpoint(gen_obj2, opt_gen,
+                                filename=f"/content/drive/MyDrive/generators/epoch_{epoch}_gen_{object_2}.pth.tar")
+                save_checkpoint(disc_obj1, opt_disc,
+                                filename=f"/content/drive/MyDrive/discriminators/epoch_{epoch}_disc_{object_1}.pth.tar")
+                save_checkpoint(disc_obj2, opt_disc,
+                                filename=f"/content/drive/MyDrive/discriminators/epoch_{epoch}_disc_{object_2}.pth.tar")
+                save_model(gen_obj1, f"/content/drive/MyDrive/generator_models/epoch_{epoch}_gen_{object_1}.pth.tar")
+                save_model(gen_obj2, f"/content/drive/MyDrive/generator_models/epoch_{epoch}_gen_{object_2}.pth.tar")
+
+            save_checkpoint(gen_obj1, opt_gen,
+                            filename=f"/content/drive/MyDrive/generators/gen_{object_1}.pth.tar")
+            save_checkpoint(gen_obj2, opt_gen,
+                            filename=f"/content/drive/MyDrive/generators/gen_{object_2}.pth.tar")
+            save_checkpoint(disc_obj1, opt_disc,
+                            filename=f"/content/drive/MyDrive/discriminators/disc_{object_1}.pth.tar")
+            save_checkpoint(disc_obj2, opt_disc,
+                            filename=f"/content/drive/MyDrive/discriminators/disc_{object_2}.pth.tar")
+            save_model(gen_obj1, f"/content/drive/MyDrive/generator_models/gen_{object_1}.pth.tar")
+            save_model(gen_obj2, f"/content/drive/MyDrive/generator_models/gen_{object_2}.pth.tar")
 
 
 if __name__ == "__main__":
-    main('horses', 'zebras')
+    object_1 = 'cropped_happy_detected_only'
+    object_2 = 'cropped_sad_detected_only'
+    main(object_1, object_2)
+
+
