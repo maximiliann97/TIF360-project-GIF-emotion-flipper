@@ -3,6 +3,7 @@ pytorch-CycleGAN-and-pix2pix/
 /cycleGAN/Our implementation/saved_images
 /gif_processing/labeling_data.py
 /generate_data/happy/
+/gif_processing/models/
 /generate_data/sad/
 cycleGAN/Our implementation/critich.pth.tar
 cycleGAN/Our implementation/criticz.pth.tar
