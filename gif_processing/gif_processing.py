@@ -7,6 +7,10 @@ import numpy as np
 from PIL import ImageOps
 import torch
 import torchvision.transforms as transforms
+import matplotlib.pyplot as plt
+from PIL import ImageFilter
+import torch
+import shutil
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -67,6 +71,8 @@ class GifFlipper:
 
 		self.gen_happy = None
 		self.gen_sad = None
+
+		self.flipped_faces = []
 
 	# Resets to empty GIF
 	def reset(self):
@@ -136,9 +142,9 @@ class GifFlipper:
 
 	def load_generators(self):
 		print("")
-		self.gen_happy = torch.load("models/gen_happy2.pth.tar", map_location=torch.device('cpu'))
+		self.gen_happy = torch.load("models/gen_happy4.pth.tar", map_location=torch.device('cpu'))
 		self.gen_happy.eval()
-		self.gen_sad = torch.load("models/gen_sad2.pth.tar", map_location=torch.device('cpu'))
+		self.gen_sad = torch.load("models/gen_sad4.pth.tar", map_location=torch.device('cpu'))
 		self.gen_sad.eval()
 		print("Generators loaded")
 
@@ -147,18 +153,38 @@ class GifFlipper:
 		to_tensor = transforms.ToTensor()
 		to_image = transforms.ToPILImage()
 
-		face_tensor = to_tensor(face_img)  # Move the tensor to the specified device
+		# converts face_img to numpy array
+		face_img = np.array(face_img)
+
+		mean = [0.5, 0.5, 0.5]
+		std = [0.5, 0.5, 0.5]
+
+		# Normalizes the image
+		face_img = (face_img / 255.0 - mean) / std
+
+		face_tensor = torch.from_numpy(face_img).permute(2, 0, 1)
+
+		# Converts tensor to float32
+		face_tensor = face_tensor.type(torch.FloatTensor)
 
 		if resize:
 			face_tensor = face_tensor.to(device)
 		else:
 			face_tensor = face_tensor[:, 0:96, 0:96].to(device)
 		
+		# TODO: Horizontal flip
+		# TODO: Normalize mean [0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], max_pixel_value=255
+
+
+
 		with torch.no_grad():
 			transformed_face = generator(face_tensor)
 
 		transformed_face = transformed_face * 0.5 + 0.5
 		transformed_face = to_image(transformed_face.cpu())
+		transformed_face = transformed_face.filter(ImageFilter.MedianFilter(size=3))
+
+		self.flipped_faces.append(transformed_face)
 
 		return transformed_face
 
@@ -224,14 +250,14 @@ class GifFlipper:
 
 		print("Faces flipped")
 
-	def build_flipped_gif(self, filename):
+	def build_flipped_gif(self, filename, emotion):
 		#Build GIF from flipped_frames and save to path
 		#This function assumes that the frames have been loaded
 		#and that the faces have been detected and flipped
 		#and that the flipped frames have been built
 		#and that the frame durations have been loaded
 		flipped_gif = Image.new('RGB', self.flipped_frames[0].size)
-		flipped_gif.save("output/" + filename + ".gif", save_all=True, append_images=self.flipped_frames[:-1], duration=self.frame_durations, loop=0)
+		flipped_gif.save("output/" + filename  + "/" + filename + "_" + emotion +  ".gif", save_all=True, append_images=self.flipped_frames[:-1], duration=self.frame_durations, loop=0)
 		
 	def compression_info(self):
 		face_dim = np.mean([face.shape[0] for frame in self.faces for face in frame])
@@ -249,15 +275,27 @@ class GifFlipper:
 if __name__ == "__main__":	
 	gif_flipper = GifFlipper()
 
-	filename = "dwight"
+	filename = "timberlake"
+
+	# Creates a directory for the specified gif
+	if not os.path.exists("output/" + filename):
+		os.makedirs("output/" + filename)
 
 	gif_flipper.load_generators()
+	
+
 	gif_flipper.load_frames(filename + ".gif")
 	gif_flipper.detect_faces()
-	gif_flipper.flip_faces(margin=0.20, fade_type="sigmoid", sig_param=4, input_emotion="happy", resize=False)
+	gif_flipper.flip_faces(margin=0.2, fade_type="sigmoid", sig_param=6, input_emotion="happy", resize=True)
+	gif_flipper.build_flipped_gif(filename, "saddened")
+	print("")
+
+	gif_flipper.load_frames(filename + ".gif")
+	gif_flipper.detect_faces()
+	gif_flipper.flip_faces(margin=0.2, fade_type="sigmoid", sig_param=6, input_emotion="sad", resize=True)
 	gif_flipper.compression_info()
-	gif_flipper.build_flipped_gif(filename + "_flipped")
+	gif_flipper.build_flipped_gif(filename, "happified")
 
-
-
+	# Saves original gif into output directory	
+	shutil.copyfile("data/" + filename + ".gif", "output/" + filename + "/" + filename + "_original.gif")
 
