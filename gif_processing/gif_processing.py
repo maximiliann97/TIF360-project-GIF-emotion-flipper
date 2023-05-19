@@ -143,12 +143,17 @@ class GifFlipper:
 		print("Generators loaded")
 
 
-	def transform_face(self, face_img, generator, device):
+	def transform_face(self, face_img, generator, device, resize):
 		to_tensor = transforms.ToTensor()
 		to_image = transforms.ToPILImage()
 
-		face_tensor = to_tensor(face_img).to(device)  # Move the tensor to the specified device
+		face_tensor = to_tensor(face_img)  # Move the tensor to the specified device
 
+		if resize:
+			face_tensor = face_tensor.to(device)
+		else:
+			face_tensor = face_tensor[:, 0:96, 0:96].to(device)
+		
 		with torch.no_grad():
 			transformed_face = generator(face_tensor)
 
@@ -157,8 +162,7 @@ class GifFlipper:
 
 		return transformed_face
 
-	def flip_faces(self, margin=0.1, fade_type="linear", sig_param=4, input_emotion="happy"):
-
+	def flip_faces(self, margin=0.1, fade_type="linear", sig_param=4, input_emotion="happy", resize=False):
 		device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 		num_faces = np.sum([len(self.faces[i]) for i in range(self.n_frames)])
@@ -175,16 +179,19 @@ class GifFlipper:
 				width, height = face.shape[1], face.shape[0]
 				face_img = Image.fromarray(face)
 
-				# Resizes face to 96x96 pixels
-				face_img = face_img.resize((96, 96))
-				
+				if resize:
+					face_img = face_img.resize((96, 96))
+					
 				# Transform face
 				if input_emotion == "happy":
-					transformed_face = self.transform_face(face_img, self.gen_sad, device)
+					transformed_face = self.transform_face(face_img, self.gen_sad, device, resize)
 				else:
-					transformed_face = self.transform_face(face_img, self.gen_happy, device)
+					transformed_face = self.transform_face(face_img, self.gen_happy, device, resize)
 
-				transformed_face = transformed_face.resize((width, height))				
+				if resize:
+					transformed_face = transformed_face.resize((width, height))
+				else:
+					width, height = transformed_face.size
 
 				# Create an alpha mask
 				mask = Image.new('L', (width, height), 0)
@@ -229,7 +236,9 @@ class GifFlipper:
 	def compression_info(self):
 		face_dim = np.mean([face.shape[0] for frame in self.faces for face in frame])
 		print("Average face dimension: " + str(truncate(face_dim, 2)))
-		
+		print("Minimum face dimension: " + str(truncate(np.min([face.shape[0] for frame in self.faces for face in frame]), 2)))
+		print("Maximum face dimension: " + str(truncate(np.max([face.shape[0] for frame in self.faces for face in frame]), 2)))
+
 		if face_dim > 96:
 			print("Face compressed to " + str(truncate(96/face_dim, 2)) + " of original size")
 		else:
@@ -240,14 +249,15 @@ class GifFlipper:
 if __name__ == "__main__":	
 	gif_flipper = GifFlipper()
 
-	filename = "two_dudes"
+	filename = "dwight"
 
 	gif_flipper.load_generators()
 	gif_flipper.load_frames(filename + ".gif")
 	gif_flipper.detect_faces()
-	gif_flipper.flip_faces(margin=0.20, fade_type="sigmoid", sig_param=4, input_emotion="happy")
+	gif_flipper.flip_faces(margin=0.20, fade_type="sigmoid", sig_param=4, input_emotion="happy", resize=False)
 	gif_flipper.compression_info()
 	gif_flipper.build_flipped_gif(filename + "_flipped")
+
 
 
 
