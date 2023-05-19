@@ -8,7 +8,6 @@ from PIL import ImageOps
 import torch
 import torchvision.transforms as transforms
 
-
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
@@ -119,6 +118,7 @@ class GifFlipper:
 		for (x, y, w, h) in faces:
 			faces_list.append(img_arr[y:y + h, x:x + w])
 			coordinates_list.append([[x,y,w,h]])
+
 		return faces_list, coordinates_list
 	
 	def detect_faces(self):
@@ -129,9 +129,9 @@ class GifFlipper:
 			self.coordinates.append(coordinates)
 
 	def load_generators(self):
-		self.gen_happy = torch.load("models/gen_happy.pth.tar", map_location=torch.device('cpu'))
+		self.gen_happy = torch.load("models/gen_happy2.pth.tar", map_location=torch.device('cpu'))
 		self.gen_happy.eval()
-		self.gen_sad = torch.load("models/gen_sad.pth.tar", map_location=torch.device('cpu'))
+		self.gen_sad = torch.load("models/gen_sad2.pth.tar", map_location=torch.device('cpu'))
 		self.gen_sad.eval()
 
 
@@ -144,13 +144,13 @@ class GifFlipper:
 		with torch.no_grad():
 			transformed_face = generator(face_tensor)
 
+		transformed_face = transformed_face * 0.5 + 0.5
 		transformed_face = to_image(transformed_face.cpu())
 
 		return transformed_face
 
-	
 
-	def flip_faces(self, margin=10, fade_type="linear", sig_param=4, input_emotion="happy"):
+	def flip_faces(self, margin=0.1, fade_type="linear", sig_param=4, input_emotion="happy"):
 
 		device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -158,6 +158,7 @@ class GifFlipper:
 			flipped_frame = self.frames[i].copy()
 			for j in range(len(self.faces[i])):
 				face = self.faces[i][j]
+				width, height = face.shape[1], face.shape[0]
 				face_img = Image.fromarray(face)
 
 				# Resizes face to 96x96 pixels
@@ -169,18 +170,18 @@ class GifFlipper:
 				else:
 					transformed_face = self.transform_face(face_img, self.gen_happy, device)
 
+				transformed_face = transformed_face.resize((width, height))				
+
 				# Create an alpha mask
-				width, height = transformed_face.size
 				mask = Image.new('L', (width, height), 0)
 
 				# Create a mask for the fade effect
 				fade_mask = Image.new('L', (width, height), 255)
 
-
 				for y in range(height):
 					for x in range(width):
 						# Calculate distance to nearest edge
-						dist_to_edge = min(x, width-x, y, height-y)
+						dist_to_edge = min(x / width, (width - x) / width, y / height, (height - y) / height)
 						# If the distance is less than the margin, decrease the opacity linearly
 						if fade_type == "linear":
 							opacity = int(255 * (dist_to_edge / margin))
@@ -195,10 +196,10 @@ class GifFlipper:
 				# Create a 4-channel image (RGB + alpha)
 				transformed_face.putalpha(mask)
 
-				transformed_face = transformed_face.resize((face.shape[1], face.shape[0]))
 
 				# Paste the flipped face onto the frame
 				flipped_frame.paste(transformed_face, tuple(self.coordinates[i][j][0][0:2]), transformed_face)
+
 			self.flipped_frames.append(flipped_frame)
 
 
@@ -211,18 +212,17 @@ class GifFlipper:
 		flipped_gif = Image.new('RGB', self.flipped_frames[0].size)
 		flipped_gif.save("output/" + filename + ".gif", save_all=True, append_images=self.flipped_frames[:-1], duration=self.frame_durations, loop=0)
 		
-		
 if __name__ == "__main__":	
 	gif_flipper = GifFlipper()
 
-	filename = "sad_mike"
+	filename = "gatsby"
 
 	gif_flipper.load_generators()
 	gif_flipper.load_frames(filename + ".gif")
 	gif_flipper.detect_faces()
-	gif_flipper.flip_faces(margin=20, fade_type="sigmoid", sig_param=6, input_emotion="happy")
-	gif_flipper.build_flipped_gif(filename + "_flipped")
+	gif_flipper.flip_faces(margin=0.25, fade_type="sigmoid", sig_param=4, input_emotion="happy")
 
+	gif_flipper.build_flipped_gif(filename + "_flipped")
 
 
 
