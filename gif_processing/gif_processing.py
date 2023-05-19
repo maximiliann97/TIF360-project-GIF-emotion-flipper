@@ -11,6 +11,10 @@ import torchvision.transforms as transforms
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
+def truncate(num, n):
+	integer = int(num * (10**n))/(10**n)
+	return float(integer)
+
 # Class to view a GIF
 class GifViewer:
 	def __init__(self, gif_path, loop=True):
@@ -103,6 +107,8 @@ class GifFlipper:
 			# Updates the pointer if it is not the last iteration
 			if i < self.n_frames - 1:
 				gif.seek(gif.tell() + 1)
+		
+		print("Frames loaded")
 	
 	#This function takes an image as input and returns a list of faces (numpy arrays), along with their coordinates.
 	#typically img will be a PIL Image object, but any image that can be cast to a numpy array will work
@@ -129,10 +135,12 @@ class GifFlipper:
 			self.coordinates.append(coordinates)
 
 	def load_generators(self):
+		print("")
 		self.gen_happy = torch.load("models/gen_happy2.pth.tar", map_location=torch.device('cpu'))
 		self.gen_happy.eval()
 		self.gen_sad = torch.load("models/gen_sad2.pth.tar", map_location=torch.device('cpu'))
 		self.gen_sad.eval()
+		print("Generators loaded")
 
 
 	def transform_face(self, face_img, generator, device):
@@ -149,14 +157,20 @@ class GifFlipper:
 
 		return transformed_face
 
-
 	def flip_faces(self, margin=0.1, fade_type="linear", sig_param=4, input_emotion="happy"):
 
 		device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
+		num_faces = np.sum([len(self.faces[i]) for i in range(self.n_frames)])
+		counter = 1
+
 		for i in range(self.n_frames):
 			flipped_frame = self.frames[i].copy()
 			for j in range(len(self.faces[i])):
+
+				print(f'Flipping face {counter} / {num_faces}', end='\r', flush=True)
+				counter += 1
+
 				face = self.faces[i][j]
 				width, height = face.shape[1], face.shape[0]
 				face_img = Image.fromarray(face)
@@ -196,12 +210,12 @@ class GifFlipper:
 				# Create a 4-channel image (RGB + alpha)
 				transformed_face.putalpha(mask)
 
-
 				# Paste the flipped face onto the frame
 				flipped_frame.paste(transformed_face, tuple(self.coordinates[i][j][0][0:2]), transformed_face)
 
 			self.flipped_frames.append(flipped_frame)
 
+		print("Faces flipped")
 
 	def build_flipped_gif(self, filename):
 		#Build GIF from flipped_frames and save to path
@@ -212,16 +226,27 @@ class GifFlipper:
 		flipped_gif = Image.new('RGB', self.flipped_frames[0].size)
 		flipped_gif.save("output/" + filename + ".gif", save_all=True, append_images=self.flipped_frames[:-1], duration=self.frame_durations, loop=0)
 		
+	def compression_info(self):
+		face_dim = np.mean([face.shape[0] for frame in self.faces for face in frame])
+		print("Average face dimension: " + str(truncate(face_dim, 2)))
+		
+		if face_dim > 96:
+			print("Face compressed to " + str(truncate(96/face_dim, 2)) + " of original size")
+		else:
+			print("Face expanded to " + str(truncate(96/face_dim, 2)) + " of original size")
+	
+		print("")
+
 if __name__ == "__main__":	
 	gif_flipper = GifFlipper()
 
-	filename = "gatsby"
+	filename = "two_dudes"
 
 	gif_flipper.load_generators()
 	gif_flipper.load_frames(filename + ".gif")
 	gif_flipper.detect_faces()
-	gif_flipper.flip_faces(margin=0.25, fade_type="sigmoid", sig_param=4, input_emotion="happy")
-
+	gif_flipper.flip_faces(margin=0.20, fade_type="sigmoid", sig_param=4, input_emotion="happy")
+	gif_flipper.compression_info()
 	gif_flipper.build_flipped_gif(filename + "_flipped")
 
 
