@@ -1,8 +1,0 @@
-Checklista:
-* Omvandla GIF till lista av bilder - KLAR
-* För varje bild:
-    - Identifiera ansikte(n)- få ut lista av tuples (x,y,w,h)
-    Om lista ej tom:
-        -Klipp ut dessa rektanglar
-        - Låt tränat nätverk flippa glad-ledsen eller vice versa
-        - Ersätt ansikte(n) i bild
