@@ -73,13 +73,13 @@ class Generator(nn.Module):
         return self.last(x)
 
 
-# def test():
-#     img_channels = 3
-#     img_size = 256
-#     x = torch.randn((2, img_channels, img_size, img_size))
-#     gen = Generator(img_channels, 9)
-#     print(gen(x).shape)
-#
-#
-# if __name__ == "__main__":
-#     test()
+def test():
+    img_channels = 3
+    img_size = 96
+    x = torch.randn((2, img_channels, img_size, img_size))
+    gen = Generator(img_channels, 9)
+    print(gen(x).shape)
+
+
+if __name__ == "__main__":
+    test()

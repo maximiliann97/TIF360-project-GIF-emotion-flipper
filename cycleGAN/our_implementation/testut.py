@@ -11,10 +11,6 @@ def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
     }
     torch.save(checkpoint, filename)
 
-def save_model(model, filename):
-    torch.save(model, filename)
-
-
 
 def load_checkpoint(checkpoint_file, model, optimizer, lr):
     print("=> Loading checkpoint")
@@ -26,6 +22,9 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
     # and it will lead to many hours of debugging \:
     for param_group in optimizer.param_groups:
         param_group["lr"] = lr
+
+def save_model(model, filename):
+    torch.save(model, filename)
 
 
 def seed_everything(seed=42):
