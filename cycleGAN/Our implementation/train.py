@@ -1,430 +1,131 @@
-# import torch
-# from dataset import Object1Object2Dataset
-# from utils import save_checkpoint, load_checkpoint, save_model
-# from torch.utils.data import DataLoader
-# import torch.nn as nn
-# import torch.optim as optim
-# import config
-# from tqdm import tqdm
-# from torchvision.utils import save_image
-# from discriminator_model import Discriminator
-# from generator_model import Generator
-#
-#
-# def train_fn(
-#         disc_obj1, disc_obj2, gen_obj1, gen_obj2, loader, opt_disc, opt_gen, l1, mse, d_scaler, g_scaler, object_1, object_2
-# ):
-#     obj1_reals = 0
-#     obj1_fakes = 0
-#     loop = tqdm(loader, leave=True)
-#
-#     for idx, (obj1, obj2) in enumerate(loop):
-#         obj1 = obj1.to(config.DEVICE)
-#         obj2 = obj2.to(config.DEVICE)
-#
-#         # Train Discriminators
-#         with torch.cuda.amp.autocast():
-#             fake_obj1 = gen_obj1(obj2)
-#             D_obj1_real = disc_obj1(obj1)
-#             D_obj1_fake = disc_obj1(fake_obj1.detach())
-#             obj1_reals += D_obj1_real.mean().item()
-#             obj1_fakes += D_obj1_fake.mean().item()
-#             D_obj1_real_loss = mse(D_obj1_real, torch.ones_like(D_obj1_real))
-#             D_obj1_fake_loss = mse(D_obj1_fake, torch.zeros_like(D_obj1_fake))
-#             D_obj1_loss = D_obj1_real_loss + D_obj1_fake_loss
-#
-#
-#
-#
-#
-#
-#             fake_obj2 = gen_obj2(obj1)
-#             D_obj2_real = disc_obj2(obj2)
-#             D_obj2_fake = disc_obj2(fake_obj2.detach())
-#             D_obj2_real_loss = mse(D_obj2_real, torch.ones_like(D_obj2_real))
-#             D_obj2_fake_loss = mse(D_obj2_fake, torch.zeros_like(D_obj2_fake))
-#             D_obj2_loss = D_obj2_real_loss + D_obj2_fake_loss
-#
-#             # Combine losses
-#             D_loss = (D_obj1_loss + D_obj2_loss) / 2
-#
-#         opt_disc.zero_grad()
-#         d_scaler.scale(D_loss).backward()
-#         d_scaler.step(opt_disc)
-#         d_scaler.update()
-#
-#         # Train Generators
-#         with torch.cuda.amp.autocast():
-#             # Adversarial loss for both generators
-#             D_obj1_fake = disc_obj1(fake_obj1)
-#             D_obj2_fake = disc_obj2(fake_obj2)
-#             loss_G_obj1 = mse(D_obj1_fake, torch.ones_like(D_obj1_fake))
-#             loss_G_obj2 = mse(D_obj2_fake, torch.ones_like(D_obj2_fake))
-#
-#
-#             # Cycle loss
-#             cycle_obj1 = gen_obj1(fake_obj2)
-#             cycle_obj2 = gen_obj2(fake_obj1)
-#             cycle_obj1_loss = l1(obj1, cycle_obj1)
-#             cycle_obj2_loss = l1(obj2, cycle_obj2)
-#
-#             # Identity loss (remove these for efficiency if you set lambda_identity=0)
-#             identity_obj1 = gen_obj1(obj1)
-#             identity_obj2 = gen_obj2(obj2)
-#             identity_obj1_loss = l1(obj1, identity_obj1)
-#             identity_obj2_loss = l1(obj2, identity_obj2)
-#
-#             # Combine all losses
-#             G_loss = (
-#                     loss_G_obj1
-#                     + loss_G_obj2
-#                     + cycle_obj1_loss * config.LAMBDA_CYCLE
-#                     + cycle_obj2_loss * config.LAMBDA_CYCLE
-#                     + identity_obj1_loss
-#                     + identity_obj2_loss)
-#
-#
-#         opt_gen.zero_grad()
-#         g_scaler.scale(G_loss).backward()
-#         g_scaler.step(opt_gen)
-#         g_scaler.update()
-#
-#         if idx % 200 == 0:
-#             save_image(fake_obj1 * 0.5 + 0.5, f"saved_images/{object_1}_{idx}.png")
-#             save_image(fake_obj2 * 0.5 + 0.5, f"saved_images/{object_2}_{idx}.png")
-#
-#         loop.set_postfix(obj1_real=obj1_reals / (idx + 1), obj1_fake=obj1_fakes / (idx + 1))
-#
-#
-#
-#
-#
-#
-# def main(object_1:str, object_2:str):
-#
-#     disc_obj1 = Discriminator(in_channels=3).to(config.DEVICE)
-#     disc_obj2 = Discriminator(in_channels=3).to(config.DEVICE)
-#     gen_obj1 = Generator(img_channels=3, num_residuals=9).to(config.DEVICE)
-#     gen_obj2 = Generator(img_channels=3, num_residuals=9).to(config.DEVICE)
-#     opt_disc = optim.Adam(
-#         list(disc_obj1.parameters()) + list(disc_obj2.parameters()),
-#         lr=config.LEARNING_RATE,
-#         betas=(0.5, 0.999),
-#     )
-#
-#     opt_gen = optim.Adam(
-#         list(gen_obj1.parameters()) + list(gen_obj2.parameters()),
-#         lr=config.LEARNING_RATE,
-#         betas=(0.5, 0.999),
-#     )
-#
-#     L1 = nn.L1Loss()
-#     mse = nn.MSELoss()
-#
-#     if config.LOAD_MODEL:
-#         load_checkpoint(
-#             f"gen_{object_1}.pth.tar",
-#             gen_obj1,
-#             opt_gen,
-#             config.LEARNING_RATE,
-#         )
-#         load_checkpoint(
-#             f"gen_{object_2}.pth.tar",
-#             gen_obj2,
-#             opt_gen,
-#             config.LEARNING_RATE,
-#         )
-#         load_checkpoint(
-#             f"disc_{object_1}.pth.tar",
-#             disc_obj1,
-#             opt_disc,
-#             config.LEARNING_RATE,
-#         )
-#         load_checkpoint(
-#             f"disc_{object_2}.pth.tar",
-#             disc_obj2,
-#             opt_disc,
-#             config.LEARNING_RATE,
-#         )
-#
-#     dataset = Object1Object2Dataset(
-#         root_obj1=config.TRAIN_DIR + '/' + object_1,
-#         root_obj2=config.TRAIN_DIR + '/' + object_2,
-#         transform=config.transforms,
-#     )
-#     # val_dataset = Object1Object2Dataset(
-#     #     root_obj1=config.VAL_DIR + '/' + object_1,
-#     #     root_obj2=config.VAL_DIR + '/' + object_2,
-#     #     transform=config.transforms,
-#     # )
-#     # val_loader = DataLoader(
-#     #     val_dataset,
-#     #     batch_size=1,
-#     #     shuffle=False,
-#     #     pin_memory=True,
-#     # )
-#     loader = DataLoader(
-#         dataset,
-#         batch_size=config.BATCH_SIZE,
-#         shuffle=True,
-#         num_workers=config.NUM_WORKERS,
-#         pin_memory=True,
-#     )
-#     g_scaler = torch.cuda.amp.GradScaler()
-#     d_scaler = torch.cuda.amp.GradScaler()
-#
-#     for epoch in range(config.NUM_EPOCHS):
-#         train_fn(
-#             disc_obj1,
-#             disc_obj2,
-#             gen_obj1,
-#             gen_obj2,
-#             loader,
-#             opt_disc,
-#             opt_gen,
-#             L1,
-#             mse,
-#             d_scaler,
-#             g_scaler,
-#             object_1,
-#             object_2
-#         )
-#
-#         if config.SAVE_MODEL:
-#
-#             # if epoch % 10:
-#             #     save_checkpoint(gen_obj1, opt_gen, filename= str(epoch) + config.CHECKPOINT_GEN_OBJ1)
-#             #     save_checkpoint(gen_obj2, opt_gen, filename= str(epoch) + config.CHECKPOINT_GEN_OBJ2)
-#             #     save_checkpoint(disc_obj1, opt_disc, filename= str(epoch) + config.CHECKPOINT_DISC_OBJ1)
-#             #     save_checkpoint(disc_obj2, opt_disc, filename= str(epoch) + config.CHECKPOINT_DISC_OBJ2)
-#
-#             # save_checkpoint(gen_obj1, opt_gen, filename=config.CHECKPOINT_GEN_OBJ1)
-#             # save_checkpoint(gen_obj2, opt_gen, filename=config.CHECKPOINT_GEN_OBJ2)
-#             # save_checkpoint(disc_obj1, opt_disc, filename=config.CHECKPOINT_DISC_OBJ1)
-#             # save_checkpoint(disc_obj2, opt_disc, filename=config.CHECKPOINT_DISC_OBJ2)
-#
-#             save_checkpoint(gen_obj1, opt_gen, filename=str(epoch) + f"gen_{object_1}.pth.tar")
-#             save_checkpoint(gen_obj2, opt_gen, filename=str(epoch) + f"gen_{object_2}.pth.tar")
-#             save_checkpoint(disc_obj1, opt_disc, filename=str(epoch) + f"disc_{object_1}.pth.tar")
-#             save_checkpoint(disc_obj2, opt_disc, filename=str(epoch) + f"disc_{object_2}.pth.tar")
-#             save_model(gen_obj1)
-#             save_model(gen_obj2)
-#
-#
-# if __name__ == "__main__":
-#     main('happy', 'sad')
-
-
 import torch
-from dataset import Object1Object2Dataset
-from utils import save_checkpoint, load_checkpoint, save_model
-from torch.utils.data import DataLoader
 import torch.nn as nn
-import torch.optim as optim
-import config
+import configurations
 from tqdm import tqdm
 from torchvision.utils import save_image
-from discriminator_model import Discriminator
-from generator_model import Generator
 
 
-def train_fn(
-        disc_obj1, disc_obj2, gen_obj1, gen_obj2, loader, opt_disc, opt_gen, l1, mse, d_scaler, g_scaler, object_1,
-        object_2
-):
-    obj1_reals = 0
-    obj1_fakes = 0
-    loop = tqdm(loader, leave=True)
+class Trainer:
+    def __init__(self, disc_obj1, disc_obj2, gen_obj1, gen_obj2, loader, opt_disc, opt_gen, d_scaler,
+                 g_scaler, l1, mse):
+        self.disc_obj1 = disc_obj1
+        self.disc_obj2 = disc_obj2
+        self.gen_obj1 = gen_obj1
+        self.gen_obj2 = gen_obj2
+        self.loader = loader
+        self.opt_disc = opt_disc
+        self.opt_gen = opt_gen
+        self.d_scaler = d_scaler
+        self.g_scaler = g_scaler
+        self.l1 = l1
+        self.mse = mse
 
-    for idx, (obj1, obj2) in enumerate(loop):
-        obj1 = obj1.to(config.DEVICE)
-        obj2 = obj2.to(config.DEVICE)
+    def train(self, object_1, object_2, num_epochs):
+        for epoch in range(num_epochs):
+            obj1_reals = 0
+            obj1_fakes = 0
+            loop = tqdm(self.loader, leave=True)
 
-        # Train Discriminators
-        with torch.cuda.amp.autocast():
-            fake_obj1 = gen_obj1(obj2)
-            D_obj1_real = disc_obj1(obj1)
-            D_obj1_fake = disc_obj1(fake_obj1.detach())
-            obj1_reals += D_obj1_real.mean().item()
-            obj1_fakes += D_obj1_fake.mean().item()
-            D_obj1_real_loss = mse(D_obj1_real, torch.ones_like(D_obj1_real))
-            D_obj1_fake_loss = mse(D_obj1_fake, torch.zeros_like(D_obj1_fake))
-            D_obj1_loss = D_obj1_real_loss + D_obj1_fake_loss
+            for idx, (obj1, obj2) in enumerate(loop):
+                obj1 = obj1.to(configurations.DEVICE)
+                obj2 = obj2.to(configurations.DEVICE)
 
-            fake_obj2 = gen_obj2(obj1)
-            D_obj2_real = disc_obj2(obj2)
-            D_obj2_fake = disc_obj2(fake_obj2.detach())
-            D_obj2_real_loss = mse(D_obj2_real, torch.ones_like(D_obj2_real))
-            D_obj2_fake_loss = mse(D_obj2_fake, torch.zeros_like(D_obj2_fake))
-            D_obj2_loss = D_obj2_real_loss + D_obj2_fake_loss
+                # Train Discriminators
+                with torch.cuda.amp.autocast():
+                    fake_obj1 = self.gen_obj1(obj2)
+                    D_obj1_real = self.disc_obj1(obj1)
+                    D_obj1_fake = self.disc_obj1(fake_obj1.detach())
+                    obj1_reals += D_obj1_real.mean().item()
+                    obj1_fakes += D_obj1_fake.mean().item()
+                    D_obj1_real_loss = self.mse(D_obj1_real, torch.ones_like(D_obj1_real))
+                    D_obj1_fake_loss = self.mse(D_obj1_fake, torch.zeros_like(D_obj1_fake))
+                    D_obj1_loss = D_obj1_real_loss + D_obj1_fake_loss
 
-            # Combine losses
-            D_loss = (D_obj1_loss + D_obj2_loss) / 2
+                    fake_obj2 = self.gen_obj2(obj1)
+                    D_obj2_real = self.disc_obj2(obj2)
+                    D_obj2_fake = self.disc_obj2(fake_obj2.detach())
+                    D_obj2_real_loss = self.mse(D_obj2_real, torch.ones_like(D_obj2_real))
+                    D_obj2_fake_loss = self.mse(D_obj2_fake, torch.zeros_like(D_obj2_fake))
+                    D_obj2_loss = D_obj2_real_loss + D_obj2_fake_loss
 
-        opt_disc.zero_grad()
-        d_scaler.scale(D_loss).backward()
-        d_scaler.step(opt_disc)
-        d_scaler.update()
+                    # Combine losses
+                    D_loss = (D_obj1_loss + D_obj2_loss) / 2
 
-        # Train Generators
-        with torch.cuda.amp.autocast():
-            # Adversarial loss for both generators
-            D_obj1_fake = disc_obj1(fake_obj1)
-            D_obj2_fake = disc_obj2(fake_obj2)
-            loss_G_obj1 = mse(D_obj1_fake, torch.ones_like(D_obj1_fake))
-            loss_G_obj2 = mse(D_obj2_fake, torch.ones_like(D_obj2_fake))
+                self.opt_disc.zero_grad()
+                self.d_scaler.scale(D_loss).backward()
+                self.d_scaler.step(self.opt_disc)
+                self.d_scaler.update()
 
-            # Cycle loss
-            cycle_obj1 = gen_obj1(fake_obj2)
-            cycle_obj2 = gen_obj2(fake_obj1)
-            cycle_obj1_loss = l1(obj1, cycle_obj1)
-            cycle_obj2_loss = l1(obj2, cycle_obj2)
+                # Train Generators
+                with torch.cuda.amp.autocast():
+                    # Adversarial loss for both generators
+                    D_obj1_fake = self.disc_obj1(fake_obj1)
+                    D_obj2_fake = self.disc_obj2(fake_obj2)
+                    loss_G_obj1 = self.mse(D_obj1_fake, torch.ones_like(D_obj1_fake))
+                    loss_G_obj2 = self.mse(D_obj2_fake, torch.ones_like(D_obj2_fake))
 
-            # Identity loss (remove these for efficiency if you set lambda_identity=0)
-            # identity_obj1 = gen_obj1(obj1)
-            # identity_obj2 = gen_obj2(obj2)
-            # identity_obj1_loss = l1(obj1, identity_obj1)
-            # identity_obj2_loss = l1(obj2, identity_obj2)
+                    # Cycle loss
+                    cycle_obj1 = self.gen_obj1(fake_obj2)
+                    cycle_obj2 = self.gen_obj2(fake_obj1)
+                    cycle_obj1_loss = self.l1(obj1, cycle_obj1)
+                    cycle_obj2_loss = self.l1(obj2, cycle_obj2)
 
-            # Combine all losses
-            G_loss = (
-                    loss_G_obj1
-                    + loss_G_obj2
-                    + cycle_obj1_loss * config.LAMBDA_CYCLE
-                    + cycle_obj2_loss * config.LAMBDA_CYCLE
-                # + identity_obj1_loss
-                # + identity_obj2_loss
-            )
+                    # Identity loss (remove these for efficiency if you set lambda_identity=0)
+                    # identity_obj1 = gen_obj1(obj1)
+                    # identity_obj2 = gen_obj2(obj2)
+                    # identity_obj1_loss = l1(obj1, identity_obj1)
+                    # identity_obj2_loss = l1(obj2, identity_obj2)
 
-        opt_gen.zero_grad()
-        g_scaler.scale(G_loss).backward()
-        g_scaler.step(opt_gen)
-        g_scaler.update()
+                    # Combine all losses
+                    G_loss = (
+                            loss_G_obj1
+                            + loss_G_obj2
+                            + cycle_obj1_loss * configurations.LAMBDA_CYCLE
+                            + cycle_obj2_loss * configurations.LAMBDA_CYCLE
+                        # + identity_obj1_loss
+                        # + identity_obj2_loss
+                    )
 
-        if idx % 200 == 0:
-            save_image(fake_obj1 * 0.5 + 0.5, f"/content/drive/MyDrive/saved_images/{object_1}_{idx}.png")
-            save_image(fake_obj2 * 0.5 + 0.5, f"/content/drive/MyDrive/saved_images/{object_2}_{idx}.png")
+                self.opt_gen.zero_grad()
+                self.g_scaler.scale(G_loss).backward()
+                self.g_scaler.step(self.opt_gen)
+                self.g_scaler.update()
 
-        loop.set_postfix(obj1_real=obj1_reals / (idx + 1), obj1_fake=obj1_fakes / (idx + 1))
+                if idx % 300 == 0:
+                    save_image(fake_obj1 * 0.5 + 0.5, f"/content/drive/MyDrive/saved_images/{object_1}_{idx}.png")
+                    save_image(fake_obj2 * 0.5 + 0.5, f"/content/drive/MyDrive/saved_images/{object_2}_{idx}.png")
 
+                loop.set_postfix(obj1_real=obj1_reals / (idx + 1), obj1_fake=obj1_fakes / (idx + 1))
 
-def main(object_1: str, object_2: str):
-    disc_obj1 = Discriminator(in_channels=3).to(config.DEVICE)
-    disc_obj2 = Discriminator(in_channels=3).to(config.DEVICE)
-    gen_obj1 = Generator(img_channels=3, num_residuals=9).to(config.DEVICE)
-    gen_obj2 = Generator(img_channels=3, num_residuals=9).to(config.DEVICE)
-    opt_disc = optim.Adam(
-        list(disc_obj1.parameters()) + list(disc_obj2.parameters()),
-        lr=config.LEARNING_RATE,
-        betas=(0.5, 0.999),
-    )
+            # Save checkpoints after each epoch
+            if epoch % 50 == 0:
+                self.save_checkpoint(self.gen_obj1, self.opt_gen, f"/content/drive/MyDrive/generators/epoch_{epoch}_gen_{object_1}.pth.tar")
+                self.save_checkpoint(self.gen_obj2, self.opt_gen, f"/content/drive/MyDrive/generators/epoch_{epoch}_gen_{object_2}.pth.tar")
+                self.save_checkpoint(self.disc_obj1, self.opt_disc, f"/content/drive/MyDrive/discriminators/epoch_{epoch}_disc_{object_1}.pth.tar")
+                self.save_checkpoint(self.disc_obj2, self.opt_disc, f"/content/drive/MyDrive/discriminators/epoch_{epoch}_disc_{object_2}.pth.tar")
+                self.save_model(self.gen_obj1, f"/content/drive/MyDrive/generator_models/epoch_{epoch}_gen_{object_1}.pth.tar")
+                self.save_model(self.gen_obj2, f"/content/drive/MyDrive/generator_models/epoch_{epoch}_gen_{object_2}.pth.tar")
 
-    opt_gen = optim.Adam(
-        list(gen_obj1.parameters()) + list(gen_obj2.parameters()),
-        lr=config.LEARNING_RATE,
-        betas=(0.5, 0.999),
-    )
+            self.save_checkpoint(self.gen_obj1, self.opt_gen, f"/content/drive/MyDrive/generators/gen_{object_1}.pth.tar")
+            self.save_checkpoint(self.gen_obj2, self.opt_gen, f"/content/drive/MyDrive/generators/gen_{object_2}.pth.tar")
+            self.save_checkpoint(self.disc_obj1, self.opt_disc, f"/content/drive/MyDrive/discriminators/disc_{object_1}.pth.tar")
+            self.save_checkpoint(self.disc_obj2, self.opt_disc, f"/content/drive/MyDrive/discriminators/disc_{object_2}.pth.tar")
+            self.save_model(self.gen_obj1, f"/content/drive/MyDrive/generator_models/gen_{object_1}.pth.tar")
+            self.save_model(self.gen_obj2, f"/content/drive/MyDrive/generator_models/gen_{object_2}.pth.tar")
 
-    L1 = nn.L1Loss()
-    mse = nn.MSELoss()
+    def save_checkpoint(self, model, optimizer, filename):
+        checkpoint = {
+            "state_dict": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+        }
+        torch.save(checkpoint, filename)
 
-    if config.LOAD_MODEL:
-        load_checkpoint(
-            f"0gen_{object_1}.pth.tar",
-            gen_obj1,
-            opt_gen,
-            config.LEARNING_RATE,
-        )
-        load_checkpoint(
-            f"0gen_{object_2}.pth.tar",
-            gen_obj2,
-            opt_gen,
-            config.LEARNING_RATE,
-        )
-        load_checkpoint(
-            f"0disc_{object_1}.pth.tar",
-            disc_obj1,
-            opt_disc,
-            config.LEARNING_RATE,
-        )
-        load_checkpoint(
-            f"0disc_{object_2}.pth.tar",
-            disc_obj2,
-            opt_disc,
-            config.LEARNING_RATE,
-        )
+    def load_checkpoint(self, model, optimizer, filename):
+        checkpoint = torch.load(filename)
+        model.load_state_dict(checkpoint["state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
 
-    dataset = Object1Object2Dataset(
-        root_obj1=config.TRAIN_DIR + '/' + object_1,
-        root_obj2=config.TRAIN_DIR + '/' + object_2,
-        transform=config.transforms,
-    )
-    # val_dataset = Object1Object2Dataset(
-    #     root_obj1=config.VAL_DIR + '/' + object_1,
-    #     root_obj2=config.VAL_DIR + '/' + object_2,
-    #     transform=config.transforms,
-    # )
-    # val_loader = DataLoader(
-    #     val_dataset,
-    #     batch_size=1,
-    #     shuffle=False,
-    #     pin_memory=True,
-    # )
-    loader = DataLoader(
-        dataset,
-        batch_size=config.BATCH_SIZE,
-        shuffle=True,
-        num_workers=config.NUM_WORKERS,
-        pin_memory=True,
-    )
-    g_scaler = torch.cuda.amp.GradScaler()
-    d_scaler = torch.cuda.amp.GradScaler()
-
-    for epoch in range(config.NUM_EPOCHS):
-        print('epoch: ', epoch)
-        train_fn(
-            disc_obj1,
-            disc_obj2,
-            gen_obj1,
-            gen_obj2,
-            loader,
-            opt_disc,
-            opt_gen,
-            L1,
-            mse,
-            d_scaler,
-            g_scaler,
-            object_1,
-            object_2
-        )
-
-        if config.SAVE_MODEL:
-
-            if epoch % 10 == 0:
-                save_checkpoint(gen_obj1, opt_gen,
-                                filename=f"/content/drive/MyDrive/generators/epoch_{epoch}_gen_{object_1}.pth.tar")
-                save_checkpoint(gen_obj2, opt_gen,
-                                filename=f"/content/drive/MyDrive/generators/epoch_{epoch}_gen_{object_2}.pth.tar")
-                save_checkpoint(disc_obj1, opt_disc,
-                                filename=f"/content/drive/MyDrive/discriminators/epoch_{epoch}_disc_{object_1}.pth.tar")
-                save_checkpoint(disc_obj2, opt_disc,
-                                filename=f"/content/drive/MyDrive/discriminators/epoch_{epoch}_disc_{object_2}.pth.tar")
-                save_model(gen_obj1, f"/content/drive/MyDrive/generator_models/epoch_{epoch}_gen_{object_1}.pth.tar")
-                save_model(gen_obj2, f"/content/drive/MyDrive/generator_models/epoch_{epoch}_gen_{object_2}.pth.tar")
-            else:
-                save_checkpoint(gen_obj1, opt_gen,
-                                filename=f"/content/drive/MyDrive/generators/epoch_{epoch}_gen_{object_1}.pth.tar")
-                save_checkpoint(gen_obj2, opt_gen,
-                                filename=f"/content/drive/MyDrive/generators/epoch_{epoch}_gen_{object_2}.pth.tar")
-                save_checkpoint(disc_obj1, opt_disc,
-                                filename=f"/content/drive/MyDrive/discriminators/epoch_{epoch}_disc_{object_1}.pth.tar")
-                save_checkpoint(disc_obj2, opt_disc,
-                                filename=f"/content/drive/MyDrive/discriminators/epoch_{epoch}_disc_{object_2}.pth.tar")
-                save_model(gen_obj1, f"/content/drive/MyDrive/generator_models/gen_{object_1}.pth.tar")
-                save_model(gen_obj2, f"/content/drive/MyDrive/generator_models/gen_{object_2}.pth.tar")
-
-
-if __name__ == "__main__":
-    main('cropped_happy_detected_only', 'cropped_sad_detected_only')
+    def save_model(self, model, filename):
+        torch.save(model, filename)
 
 
