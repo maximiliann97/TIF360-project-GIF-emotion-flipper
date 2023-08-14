@@ -1,6 +1,6 @@
 import random, torch, os, numpy as np
 import torch.nn as nn
-import config
+import configurations
 import copy
 
 def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
@@ -18,7 +18,7 @@ def save_model(model, filename):
 
 def load_checkpoint(checkpoint_file, model, optimizer, lr):
     print("=> Loading checkpoint")
-    checkpoint = torch.load(checkpoint_file, map_location=config.DEVICE)
+    checkpoint = torch.load(checkpoint_file, map_location=configurations.DEVICE)
     model.load_state_dict(checkpoint["state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer"])
 
@@ -28,12 +28,3 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
         param_group["lr"] = lr
 
 
-def seed_everything(seed=42):
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
