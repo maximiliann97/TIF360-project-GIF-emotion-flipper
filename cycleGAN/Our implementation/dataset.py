@@ -1,7 +1,7 @@
-from PIL import Image
 import os
-from torch.utils.data import Dataset
 import numpy as np
+from PIL import Image
+from torch.utils.data import Dataset
 
 class Object1Object2Dataset(Dataset):
     def __init__(self, root_obj1, root_obj2, transform=None):
@@ -29,10 +29,10 @@ class Object1Object2Dataset(Dataset):
         obj2_img = np.array(Image.open(obj2_path).convert("RGB"))
 
         if self.transform:
-            augmentations = self.transform(image=obj1_img, image0=obj2_img)
-            obj1_img = augmentations["image"]
-            obj2_img = augmentations["image0"]
+            obj1_img = Image.fromarray(obj1_img)
+            obj2_img = Image.fromarray(obj2_img)
+
+            obj1_img = self.transform(obj1_img)
+            obj2_img = self.transform(obj2_img)
 
         return obj1_img, obj2_img
-
-print('hej')
